@@ -15,14 +15,13 @@ from custom_components.pentair_pool.const import (
     FIELD_ICS12,
     FIELD_ICS13,
     FIELD_ICS15,
-    FIELD_RA4,
     FIELD_T0,
     FIELD_T1,
     HTD1_LABELS,
 )
 from custom_components.pentair_pool.entity import PentairPoolEntity
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription, SensorStateClass
-from homeassistant.const import PERCENTAGE, UnitOfPower, UnitOfTemperature, UnitOfTime
+from homeassistant.const import PERCENTAGE, UnitOfTemperature, UnitOfTime
 
 if TYPE_CHECKING:
     from custom_components.pentair_pool.coordinator import PentairPoolDataUpdateCoordinator
@@ -82,18 +81,8 @@ SENSORS: tuple[tuple[str, PentairSensorDescription], ...] = (
             value_fn=_as_int,
         ),
     ),
-    (
-        FIELD_RA4,
-        PentairSensorDescription(
-            key="filter_pump_power",
-            translation_key="filter_pump_power",
-            device_class=SensorDeviceClass.POWER,
-            state_class=SensorStateClass.MEASUREMENT,
-            native_unit_of_measurement=UnitOfPower.WATT,
-            has_entity_name=True,
-            value_fn=_as_int,
-        ),
-    ),
+    # NOTE: pump power is exposed by a dedicated entity in sensor/pump.py, which
+    # prefers the real-time IntelliFlo watts (ifs3) over the relay power (ra4).
     # NOTE: htd14 is exposed by a dedicated countdown entity in sensor/cooldown.py
     # (it ticks locally every second between server updates). Don't duplicate here.
     (

@@ -57,6 +57,8 @@
       "air_temperature": { "name": "Air temperature" },
       "heater_mode": { "name": "Heater mode" },
       "filter_pump_power": { "name": "Filter pump power" },
+      "pump_speed": { "name": "Pump speed" },
+      "pump_timer_remaining": { "name": "Pump timer remaining" },
       "heater_cooldown": { "name": "Heater cooldown" },
       "chlorine_actual": { "name": "Chlorine output (actual)" },
       "salt_ppm": { "name": "Salt level" },

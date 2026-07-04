@@ -12,13 +12,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from custom_components.pentair_pool.const import FIELD_RA4
+from custom_components.pentair_pool.const import FIELD_IFS3, FIELD_IFS4, FIELD_RA4
 from custom_components.pentair_pool.entity import PentairPoolEntity
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
     BinarySensorEntityDescription,
 )
+
+# Real-time speed/power first (VSF pumps only push ifs*), relay power last
+# (relay-only pumps, and the REST-seeded fallback). First field that reports a
+# parseable value wins.
+_RUNNING_FIELDS = (FIELD_IFS4, FIELD_IFS3, FIELD_RA4)
 
 if TYPE_CHECKING:
     from custom_components.pentair_pool.coordinator import PentairPoolDataUpdateCoordinator
@@ -32,7 +37,13 @@ DESCRIPTION = BinarySensorEntityDescription(
 
 
 class PentairPoolPumpRunningBinarySensor(BinarySensorEntity, PentairPoolEntity):
-    """`Relay1_Power > 0` indicator."""
+    """Pump-circulating indicator (speed or power > 0).
+
+    Prefers the real-time IntelliFlo fields (`ifs4` RPM, `ifs3` W) that a VSF
+    pump pushes over the WebSocket; falls back to the relay power `ra4` for
+    relay-only pumps. This keeps the sensor live for the fountain and the main
+    VSF pump, which never push `ra4` over the WebSocket.
+    """
 
     def __init__(
         self,
@@ -45,11 +56,13 @@ class PentairPoolPumpRunningBinarySensor(BinarySensorEntity, PentairPoolEntity):
 
     @property
     def is_on(self) -> bool | None:
-        """True when the pump is drawing power."""
-        v = self.field_value(FIELD_RA4)
-        if v is None:
-            return None
-        try:
-            return int(v) > 0
-        except ValueError:
-            return None
+        """True when the pump is circulating (first parseable source > 0)."""
+        for code in _RUNNING_FIELDS:
+            v = self.field_value(code)
+            if v is None:
+                continue
+            try:
+                return int(v) > 0
+            except ValueError:
+                continue
+        return None
