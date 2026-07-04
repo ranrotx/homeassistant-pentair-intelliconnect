@@ -49,12 +49,22 @@ WS_URL = "wss://g44t970cbi.execute-api.us-west-2.amazonaws.com/prod"
 TOKEN_REFRESH_MARGIN_SECONDS = 60
 
 # --- IntelliConnect (PIF0) field codes ---------------------------------------
-FIELD_RA0 = "ra0"  # Relay1_Manual_Schedule (pump on/off + schedule mode)
+# Relay 1 and Relay 2 are generic aux relays; the installed accessory varies by
+# controller (on the captured account Relay 1 = Pentair Color Light, Relay 2 =
+# Blower -- see the listdevices `devices` manifest). Both relays share the same
+# field layout: raN/rbN. Relay state/power push only over REST (not the WS), so
+# the derived on/off entities refresh on the 60 s poll.
+FIELD_RA0 = "ra0"  # Relay1_Manual_Schedule (on/off + schedule mode)
 FIELD_RA1 = "ra1"  # Relay1_Start_Time (UTC seconds-of-day)
 FIELD_RA2 = "ra2"  # Relay1_End_Time
 FIELD_RA3 = "ra3"  # Relay1_Timer (configured timer duration, seconds)
 FIELD_RA4 = "ra4"  # Relay1_Power (watts, RO)
+FIELD_RA8 = "ra8"  # Relay1_ColorLight_Mode (0-18; color/theme index when a light)
 FIELD_RAS0 = "ras0"  # Relay1_Timer_Status (live pump-stop countdown, RO seconds)
+FIELD_RB0 = "rb0"  # Relay2_Manual_Schedule (on/off + schedule mode)
+FIELD_RB4 = "rb4"  # Relay2_Power (watts, RO)
+FIELD_RB8 = "rb8"  # Relay2_ColorLight_Mode (0-18; color/theme index when a light)
+FIELD_RBS0 = "rbs0"  # Relay2_Timer_Status (live stop countdown, RO seconds)
 FIELD_P1 = "p1"  # Relay1_Egg_Timer
 FIELD_HTD1 = "htd1"  # Heater_Mode
 FIELD_HTD2 = "htd2"  # Heater_SetPoint (tenths of degF)

@@ -50,3 +50,15 @@ def capability_present(dev: dict[str, Any], *keys: str) -> bool:
     if not manifest:
         return True
     return any(k in manifest for k in keys)
+
+
+def manifest_entry(dev: dict[str, Any], key: str) -> dict[str, Any]:
+    """Return the manifest entry for ``key`` (e.g. the ``Relay 1`` accessory).
+
+    Each entry carries the installed accessory's ``nickName`` (Blower, Pentair
+    Color Light, ...), ``model`` and ``type`` (``lighting``, a pump type, ...),
+    so entities can name and classify themselves from cloud metadata instead of
+    hard-coding ``Relay 1``.
+    """
+    entry = device_manifest(dev).get(key)
+    return entry if isinstance(entry, dict) else {}
