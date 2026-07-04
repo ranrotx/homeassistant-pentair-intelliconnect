@@ -42,10 +42,6 @@
     }
   },
   "entity": {
-    "switch": {
-      "filter_pump": { "name": "Filter pump" },
-      "daily_schedule": { "name": "Daily schedule" }
-    },
     "climate": {
       "heater": { "name": "Heater" }
     },
@@ -73,10 +69,6 @@
       "alarm": { "name": "Alarm" },
       "filter_pump_running": { "name": "Filter pump running" },
       "pump_enabled": { "name": "Pump enabled" }
-    },
-    "time": {
-      "schedule_start": { "name": "Daily schedule start" },
-      "schedule_end": { "name": "Daily schedule stop" }
     }
   },
   "services": {

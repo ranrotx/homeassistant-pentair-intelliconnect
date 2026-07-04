@@ -42,8 +42,6 @@ PLATFORMS: list[Platform] = [
     Platform.CLIMATE,
     Platform.NUMBER,
     Platform.SENSOR,
-    Platform.SWITCH,
-    Platform.TIME,
 ]
 
 # This integration is configured via config entries only
