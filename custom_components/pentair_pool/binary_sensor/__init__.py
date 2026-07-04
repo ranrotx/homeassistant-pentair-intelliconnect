@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from custom_components.pentair_pool.const import (
+    FIELD_IFS1,
     FIELD_IFS3,
     FIELD_IFS4,
     FIELD_RA0,
@@ -15,6 +16,7 @@ from custom_components.pentair_pool.const import (
 )
 from custom_components.pentair_pool.entity_utils.capabilities import CAP_RELAY1, CAP_RELAY2, capability_present
 
+from .pump_enabled import PentairPoolPumpEnabledBinarySensor
 from .pump_running import PentairPoolPumpRunningBinarySensor
 from .relay import PentairPoolRelayBinarySensor
 from .status import PentairPoolAlarmBinarySensor, PentairPoolOnlineBinarySensor
@@ -51,6 +53,8 @@ async def async_setup_entry(
         entities.append(PentairPoolAlarmBinarySensor(coordinator, device_id))
         if any(f in fields for f in _PUMP_FIELDS):
             entities.append(PentairPoolPumpRunningBinarySensor(coordinator, device_id))
+        if FIELD_IFS1 in fields:
+            entities.append(PentairPoolPumpEnabledBinarySensor(coordinator, device_id))
         for key, cap, state_field, power_field in _RELAYS:
             if state_field in fields and capability_present(dev, cap):
                 entities.append(

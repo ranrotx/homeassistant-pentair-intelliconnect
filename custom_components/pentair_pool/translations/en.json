@@ -71,7 +71,8 @@
     "binary_sensor": {
       "online": { "name": "Online" },
       "alarm": { "name": "Alarm" },
-      "filter_pump_running": { "name": "Filter pump running" }
+      "filter_pump_running": { "name": "Filter pump running" },
+      "pump_enabled": { "name": "Pump enabled" }
     },
     "time": {
       "schedule_start": { "name": "Daily schedule start" },
