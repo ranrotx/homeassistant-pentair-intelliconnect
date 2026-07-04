@@ -42,23 +42,34 @@ def device_manifest(dev: dict[str, Any]) -> dict[str, Any]:
 def capability_present(dev: dict[str, Any], *keys: str) -> bool:
     """True if the device's manifest lists any of ``keys``.
 
+    Matching is case-insensitive: the manifest keys are free-form accessory
+    labels (note the mixed casing of ``heaters`` vs ``Water Temperature``), so
+    an exact match would wrongly hide real hardware on a controller/firmware
+    that capitalises them differently.
+
     Falls back to ``True`` when the device reports no manifest at all (older
-    firmware), so we degrade to field-presence gating and never hide real
-    hardware on a controller that simply doesn't publish a manifest.
+    firmware, or an empty manifest), so we degrade to field-presence gating and
+    never hide real hardware -- an unexpected extra entity is a lesser evil than
+    a missing one.
     """
     manifest = device_manifest(dev)
     if not manifest:
         return True
-    return any(k in manifest for k in keys)
+    present = {str(k).casefold() for k in manifest}
+    return any(str(k).casefold() in present for k in keys)
 
 
 def manifest_entry(dev: dict[str, Any], key: str) -> dict[str, Any]:
     """Return the manifest entry for ``key`` (e.g. the ``Relay 1`` accessory).
 
-    Each entry carries the installed accessory's ``nickName`` (Blower, Pentair
-    Color Light, ...), ``model`` and ``type`` (``lighting``, a pump type, ...),
-    so entities can name and classify themselves from cloud metadata instead of
-    hard-coding ``Relay 1``.
+    Case-insensitive, matching :func:`capability_present`. Each entry carries
+    the installed accessory's ``nickName`` (Blower, Pentair Color Light, ...),
+    ``model`` and ``type`` (``lighting``, a pump type, ...), so entities can
+    name and classify themselves from cloud metadata instead of hard-coding
+    ``Relay 1``.
     """
-    entry = device_manifest(dev).get(key)
-    return entry if isinstance(entry, dict) else {}
+    target = str(key).casefold()
+    for name, entry in device_manifest(dev).items():
+        if str(name).casefold() == target and isinstance(entry, dict):
+            return entry
+    return {}

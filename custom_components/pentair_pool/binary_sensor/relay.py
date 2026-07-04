@@ -47,11 +47,16 @@ class PentairPoolRelayBinarySensor(BinarySensorEntity, PentairPoolEntity):
         """Bind to one relay on one device."""
         entry = manifest_entry((coordinator.data or {}).get(device_id) or {}, manifest_key)
         is_light = entry.get("type") == "lighting"
+        # A light is plain on/off: BinarySensorDeviceClass.LIGHT means "light
+        # DETECTED" (an illuminance sensor), which would mislabel the state.
+        # Leave lights with no device_class (On/Off) and a lightbulb icon;
+        # classify other relays (pumps/blowers) as RUNNING.
         super().__init__(
             coordinator,
             BinarySensorEntityDescription(
                 key=key,
-                device_class=BinarySensorDeviceClass.LIGHT if is_light else BinarySensorDeviceClass.RUNNING,
+                device_class=None if is_light else BinarySensorDeviceClass.RUNNING,
+                icon="mdi:lightbulb" if is_light else None,
                 has_entity_name=True,
             ),
             device_id,
