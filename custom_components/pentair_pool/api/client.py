@@ -553,4 +553,18 @@ class PentairPoolWebSocket:
         device_id = obj.get("deviceId")
         fields = (obj.get("data") or {}).get("fields") or {}
         if device_id and fields:
+            # TEMP capture instrumentation (Phase-1 egg-timer/relay discovery):
+            # log every incoming device_data delta as a compact {code: value}
+            # map so a debug capture can diff exactly which fields change when
+            # the user starts/stops a timer or toggles a relay in the Pentair
+            # app. Remove once the field semantics are confirmed. Gated on the
+            # DEBUG level so it's a no-op in normal operation.
+            if _LOGGER.isEnabledFor(logging.DEBUG):
+                compact = {code: (val or {}).get("value") for code, val in fields.items()}
+                _LOGGER.debug(
+                    "WS device_data [screen=%s] device=%s fields=%s",
+                    self._active_screen,
+                    device_id,
+                    compact,
+                )
             await self._on_device_data(device_id, fields)
