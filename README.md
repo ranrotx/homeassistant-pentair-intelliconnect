@@ -1,4 +1,6 @@
-# Pentair IntelliConnect
+# Pentair IntelliConnect (ranrotx fork)
+
+> **This is a fork** of [tikotzky/homeassistant-pentair-intelliconnect](https://github.com/tikotzky/homeassistant-pentair-intelliconnect), maintained at [ranrotx/homeassistant-pentair-intelliconnect](https://github.com/ranrotx/homeassistant-pentair-intelliconnect). It adds IntelliFlo variable-speed pump control, aux relay control, and heater timer features (see [Changes in this fork](#changes-in-this-fork)). Releases are published from the fork's `prod` branch. Report issues with this build on the fork, not upstream.
 
 <img src="icons/logo.png" alt="Pentair IntelliConnect" width="200" />
 
@@ -12,6 +14,28 @@
 A Home Assistant custom integration for **Pentair IntelliConnect** pool controllers, communicating with the Pentair Cloud over HTTPS + WebSocket. It exposes the pumps, pool heater, and IntelliChlor salt cell as native Home Assistant entities. Pump schedules, programs, and the chlorine output setting are managed in the Pentair app; the integration does not change them. It can start a pump program and stop the pump, like the app's play and stop buttons.
 
 The integration is reverse-engineered from the official Pentair Home mobile app; there is no public Pentair API. It authenticates against the same AWS Cognito user pool as the app and subscribes to the same real-time WebSocket, so state changes from the wall panel or the official app show up in Home Assistant within a second.
+
+## Changes in this fork
+
+Compared with upstream v0.3.1:
+
+**Added**
+
+- **IntelliFlo VSF pumps:** real-time **Filter pump power**, **Pump speed**, **Pump program** and **Pump timer remaining** sensors, and a **Pump enabled** sensor. **Run _program_**, **Stop pump** and **Resume pump schedules** buttons work like the app's play and stop buttons.
+- **Aux relays:** controlled as a **light** (color lights) or a **switch** (for example the Blower). Non-light relays get an egg timer: a duration number, a **Start _name_ timer** button and a **_name_ timer remaining** sensor.
+- **Heater timer:** the `pentair_pool.start_heater_timer` action runs the heater for a set time, and the **Heater timer remaining** sensor shows the time left.
+- **Pump program for heating:** an integration option that runs a pump program when the heater needs flow, and stops the pump again after the heater's cooldown.
+- **Accessory gating:** entities are only created for accessories the controller reports as installed, so a fountain-only controller doesn't get heater or water-temperature entities.
+- The heater reports `heating` for every firing state, and heater changes are refused while the controller is in service mode, like the app.
+
+**Removed (breaking)**
+
+- The Relay 1 "filter pump" switch and the schedule start/end time entities. On VSF accounts Relay 1 is not the pump.
+- Chlorine output control. Set it in the Pentair app.
+
+**Changed (breaking)**
+
+- The **Heater mode** sensor reports `htd1` = 2 as "Timer or schedule idle" and `htd1` = 4 as "Timer or schedule heating".
 
 ## Platforms and entities
 
@@ -54,7 +78,7 @@ The WebSocket push is the primary update path; a 60 s REST fallback poll runs in
 
 This integration requires [HACS](https://hacs.xyz/).
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=tikotzky&repository=homeassistant-pentair-intelliconnect&category=integration)
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ranrotx&repository=homeassistant-pentair-intelliconnect&category=integration)
 
 1. Click "Download" in HACS to install the integration
 2. Restart Home Assistant
@@ -115,7 +139,7 @@ Issues and pull requests are welcome. The repository ships a fully configured de
 
 ### GitHub Codespaces
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/tikotzky/homeassistant-pentair-intelliconnect?quickstart=1)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/ranrotx/homeassistant-pentair-intelliconnect?quickstart=1)
 
 Click the badge, wait 2–3 minutes for the container to build, then run:
 
@@ -138,7 +162,7 @@ script/test     # pytest
 
 ## AI-assisted development
 
-This integration was developed with substantial assistance from AI coding agents (Claude, GitHub Copilot, others). The protocol details were reverse-engineered from captures of the official Pentair Home Android app; see `docs/` for protocol notes if you're contributing. AI-generated code in this repository is reviewed and exercised against a real controller, but please [open an issue](https://github.com/tikotzky/homeassistant-pentair-intelliconnect/issues) if you spot something off.
+This integration was developed with substantial assistance from AI coding agents (Claude, GitHub Copilot, others). The protocol details were reverse-engineered from captures of the official Pentair Home Android app; see `docs/` for protocol notes if you're contributing. AI-generated code in this repository is reviewed and exercised against a real controller, but please [open an issue](https://github.com/ranrotx/homeassistant-pentair-intelliconnect/issues) if you spot something off.
 
 ## License
 
@@ -146,11 +170,11 @@ MIT — see [LICENSE](LICENSE).
 
 This project is not affiliated with, endorsed by, or supported by Pentair.
 
-[commits-shield]: https://img.shields.io/github/commit-activity/y/tikotzky/homeassistant-pentair-intelliconnect.svg?style=for-the-badge
-[commits]: https://github.com/tikotzky/homeassistant-pentair-intelliconnect/commits/main
+[commits-shield]: https://img.shields.io/github/commit-activity/y/ranrotx/homeassistant-pentair-intelliconnect.svg?style=for-the-badge
+[commits]: https://github.com/ranrotx/homeassistant-pentair-intelliconnect/commits/prod
 [hacs]: https://github.com/hacs/integration
 [hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
-[license-shield]: https://img.shields.io/github/license/tikotzky/homeassistant-pentair-intelliconnect.svg?style=for-the-badge
-[maintenance-shield]: https://img.shields.io/badge/maintainer-%40tikotzky-blue.svg?style=for-the-badge
-[releases-shield]: https://img.shields.io/github/release/tikotzky/homeassistant-pentair-intelliconnect.svg?style=for-the-badge
-[releases]: https://github.com/tikotzky/homeassistant-pentair-intelliconnect/releases
+[license-shield]: https://img.shields.io/github/license/ranrotx/homeassistant-pentair-intelliconnect.svg?style=for-the-badge
+[maintenance-shield]: https://img.shields.io/badge/maintainer-%40ranrotx-blue.svg?style=for-the-badge
+[releases-shield]: https://img.shields.io/github/release/ranrotx/homeassistant-pentair-intelliconnect.svg?style=for-the-badge
+[releases]: https://github.com/ranrotx/homeassistant-pentair-intelliconnect/releases
