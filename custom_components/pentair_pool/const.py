@@ -93,13 +93,34 @@ FIELD_IFS1 = "ifs1"  # Running_Stopped -> pump enable state (10=enabled, 4=disab
 FIELD_IFS2 = "ifs2"  # Active_Menu (0=off, N=program N running, 17=priming)
 FIELD_IFS3 = "ifs3"  # Actual_Power (watts, RO)
 FIELD_IFS4 = "ifs4"  # Actual_Speed_Status (RPM, RO)
+FIELD_IFS18 = "ifs18"  # Alarm (0 = none)
 FIELD_IFS27 = "ifs27"  # Duration -> egg-timer remaining (minutes, RO while a timed run is active)
 
 # ifs1 (Running_Stopped) values. Confirmed live 2026-07-04 by enabling/disabling
 # the fountain: the field holds 10 in every enabled state (idle, priming, or
-# running) and 4 when the pump feature is disabled at the controller.
+# running) and 4 when the pump feature is disabled at the controller. The app's
+# Stop button disables the pump this way too (c1 = C1_STOP, verified 2026-10-25).
 IFS1_ENABLED = "10"
 IFS1_DISABLED = "4"
+
+# ifs18 (Alarm) values the Pentair app refuses to send pump commands in.
+IFS18_COMMAND_BLOCKED = frozenset({"16384", "128", "16512", "8192", "-1"})
+
+# --- IntelliFlo pump commands (c1) --------------------------------------------
+# `c1` (the app's "selectSpeed") is a write-only command field: it never appears
+# in the REST snapshot. Decoded from the Android app (v4.2.21, startStopProgram)
+# and verified live on 2026-10-25: "1"-"4" run that program, "6" stops the pump
+# (ifs1 -> 4), "5" re-enables it so its schedules run again (the app's pump
+# on/off toggle sends "6" and "5").
+FIELD_C1 = "c1"
+C1_STOP = "6"
+C1_RESUME_SCHEDULES = "5"
+
+# Per-program Operation_Mode fields (ifd0-ifd3, one per app "Program 1-4").
+# The app never sends a Run command for a SCHEDULE program; it hands control
+# back to the schedules instead.
+FIELD_PROGRAM_MODES = ("ifd0", "ifd1", "ifd2", "ifd3")
+PROGRAM_MODE_SCHEDULE = "2"
 
 # ifs2 (Active_Menu) values. Confirmed live 2026-10-25 by starting/stopping
 # programs from the app: 0 while stopped, 17 while priming, then the number of

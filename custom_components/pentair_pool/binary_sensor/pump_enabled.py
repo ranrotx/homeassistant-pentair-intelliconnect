@@ -8,7 +8,8 @@ enabled and running; when disabled it will not run at all.
 
 Derived from `ifs1` (Running_Stopped), confirmed live by toggling the fountain:
 the field holds `10` in every enabled state (idle, priming, running) and `4`
-when disabled.
+when disabled. The app's Stop button (and `button.*_stop_pump`) disables the
+pump this way; Run or Resume pump schedules enables it again.
 """
 
 from __future__ import annotations

@@ -39,9 +39,23 @@
     },
     "update_failed": {
       "message": "Failed to update data from Pentair Cloud."
+    },
+    "command_failed": {
+      "message": "Pentair Cloud did not accept the pump command."
+    },
+    "pump_alarm": {
+      "message": "The pump reports alarm {alarm}. Clear it in the Pentair app, then try again."
+    },
+    "program_runs_on_schedule": {
+      "message": "{program} is set to run on a schedule. Press Resume pump schedules to let it run."
     }
   },
   "entity": {
+    "button": {
+      "pump_program_run": { "name": "Run {program}" },
+      "pump_stop": { "name": "Stop pump" },
+      "pump_resume_schedules": { "name": "Resume pump schedules" }
+    },
     "climate": {
       "heater": { "name": "Heater" }
     },

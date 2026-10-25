@@ -1,6 +1,6 @@
-# IntelliFlo Program Control — Findings and Capture Plan
+# IntelliFlo Program Control — Findings
 
-**Status (2026-10-25):** read side done, start/stop command not yet found. Next step is a capture of the Pentair Pool iPhone app's traffic with mitmproxy, done while the Mac and the iPhone are on the same Wi-Fi network.
+**Status (2026-10-25):** done. The start/stop command is the write-only field `c1` (§4), verified live on the fountain. The integration exposes it as pump buttons.
 
 **Goal:** Home Assistant "presses" the start and stop buttons of the pump's four programs (the app's Program 1–4 cards). Program settings (speed, mode, egg-timer duration, schedule) stay in the Pentair app. The integration does not edit them.
 
@@ -58,32 +58,33 @@ Every probe was a `PUT /device/device-service/user/device/<id>` with `{"payload"
 
 The cloud checks field codes: it rejects status fields and codes it doesn't know. `dr0`–`dr2` (`Type1_DR`–`Type3_DR`, −2–43200) behave like a stored setting, probably demand response, not a run command.
 
-## 4. Capture procedure (same Wi-Fi network)
+## 4. The command: `c1`
 
-An attempt over the iPhone's Personal Hotspot failed. The Mac only gets a T-Mobile IPv6 address there, and packets from the iPhone to that address never arrive. A WireGuard tunnel showed bytes sent and none received. The app is also not installable on Apple Silicon Macs.
+A mitmproxy capture of the iPhone app failed: the phone trusted the proxy (Safari loaded `api.pentair.cloud` through it), but the app aborts the TLS handshake, so it pins certificates. The command came instead from the Android app (`com.pentair.pentairhome` 4.2.21). Its React Native bundle is Hermes bytecode v96, which [hermes-dec](https://github.com/P1sec/hermes-dec) decompiles. The IntelliFlo screen's `startStopProgram` writes the field the app calls `selectSpeed`, which is `c1`:
 
-1. On the Mac, from the repo root:
+| `c1` | App action                                        | Effect                                                 |
+| ---- | ------------------------------------------------- | ------------------------------------------------------ |
+| 1–4  | Run Now on Program N                              | primes, then runs Program N with its app settings      |
+| `6`  | Stop, and the pump on/off toggle's off            | stops; `ifs1` → 4, pump stays disabled, schedules idle |
+| `5`  | the pump on/off toggle's on (`activateSchedules`) | re-enables the pump so its schedules run again         |
 
-   ```bash
-   uvx --from mitmproxy mitmdump -s script/_mitm_pentair_log.py \
-       --allow-hosts 'pentair|execute-api|\.iot\.|mitm\.it'
-   ```
+It goes through the same `PUT /device/device-service/user/device/<id>` with `{"payload": {"c1": "<value>"}}` as any other write. `c1` never appears in the REST snapshot, which is why §2 saw no field change. The app also:
 
-   Only Pentair and AWS API hosts are decrypted. Tokens, passwords and auth headers are redacted in `script/_mitm_pentair_log.log`, which git ignores.
+- sends no Run for a program whose mode is schedule (`ifd*` = 2); it sends `6`, then `5` after one polling interval;
+- refuses every command while `ifs18` (`Alarm`) is 16384, 128, 16512, 8192 or −1.
 
-2. Find the Mac's Wi-Fi address: `ipconfig getifaddr en0`.
-3. On the iPhone, go to Settings › Wi-Fi › (network) › Configure Proxy › Manual. Enter the Mac's address, port `8080`.
-4. In Safari, open `http://mitm.it`, download the iOS certificate, and install it under Settings › General › VPN & Device Management. Then turn on full trust under Settings › General › About › Certificate Trust Settings.
-5. Start `script/_field_diff.py <device_id>` in the devcontainer as a cross-check.
-6. Force-quit and reopen the Pentair Pool app. Press **start** on one program, wait about 30 s, then press **stop**. Note the times.
-7. Read the log for the request sent at the moment of each press: method, URL, body, and any WebSocket frame.
+Live test on the fountain controller (Program 1: egg timer, 900 RPM, 61 min), 2026-10-25:
 
-If the log shows `TLS-FAIL` for Pentair hosts, the app is rejecting the certificate, either because it isn't trusted or because the app pins certificates. Fallbacks are an Android emulator with a system CA, or asking the upstream maintainer. Upstream `docs/pentair/STATUS.md` describes an `ENDPOINTS.md` "verified command catalogue" kept in a separate research workspace.
+```text
+18:15:12 PUT c1=1 -> set_device_success
+18:15:16 ifs2=17 (priming)
+18:15:25 ifs2=1  ifs4=900 ifs3=62 ifs27=61
+18:15:44 PUT c1=6 -> set_device_success
+18:15:48 ifs1=4  ifs2=0  ifs4=0  ifs27=0
+```
 
-**Cleanup afterwards:** turn off the iPhone's Wi-Fi proxy, remove the mitmproxy profile (Settings › General › VPN & Device Management), and stop mitmdump. Anyone holding the mitmproxy CA key in `~/.mitmproxy` can read the phone's encrypted traffic while that profile stays trusted.
+## 5. In the integration
 
-## 5. After the capture
+`button/pump_command.py` adds, for each device reporting `ifs2`: **Run _program name_** for each program slot (`ifd0`–`ifd3`), **Stop pump** (`6`) and **Resume pump schedules** (`5`). Presses follow the app's alarm and schedule-mode rules. Program settings stay in the Pentair app.
 
-- Add one `button` per program ("Start _program name_", named from `p5`–`p8`), plus a "Stop pump" button. Gate them on the IntelliFlo manifest entry and on the `ifs2` field.
-- Keep writes serialized (`PARALLEL_UPDATES = 1`). Verify each press through `ifs2` (priming, then N) and `ifs1`.
-- Remove the temporary WebSocket debug logging in `api/client.py` (`_handle_text`) once no more field captures are needed.
+Still to do: remove the temporary WebSocket debug logging in `api/client.py` (`_handle_text`) once no more field captures are needed.

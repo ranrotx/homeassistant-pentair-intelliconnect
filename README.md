@@ -9,7 +9,7 @@
 [![hacs][hacsbadge]][hacs]
 ![Project Maintenance][maintenance-shield]
 
-A Home Assistant custom integration for **Pentair IntelliConnect** pool controllers, communicating with the Pentair Cloud over HTTPS + WebSocket. It exposes the pumps, pool heater, and IntelliChlor salt cell as native Home Assistant entities. Pump schedules, programs, and the chlorine output setting are managed in the Pentair app; the integration does not change them.
+A Home Assistant custom integration for **Pentair IntelliConnect** pool controllers, communicating with the Pentair Cloud over HTTPS + WebSocket. It exposes the pumps, pool heater, and IntelliChlor salt cell as native Home Assistant entities. Pump schedules, programs, and the chlorine output setting are managed in the Pentair app; the integration does not change them. It can start a pump program and stop the pump, like the app's play and stop buttons.
 
 The integration is reverse-engineered from the official Pentair Home mobile app; there is no public Pentair API. It authenticates against the same AWS Cognito user pool as the app and subscribes to the same real-time WebSocket, so state changes from the wall panel or the official app show up in Home Assistant within a second.
 
@@ -20,6 +20,7 @@ The integration is configured per Pentair account and surfaces one Home Assistan
 | Platform        | Entities                                                                                                                                                                                                                            |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `binary_sensor` | **Online** (connectivity), **Alarm** (problem flag), **Filter pump running** (pump speed/power above 0), **Pump enabled**, one on/off sensor per installed aux relay, named from the app (e.g. **Blower**, **Pentair Color Light**) |
+| `button`        | Per IntelliFlo pump: **Run _program name_** for each of the app's Program 1–4, **Stop pump**, **Resume pump schedules**                                                                                                             |
 | `climate`       | **Heater** — HVAC entity wrapping the pool heater. `heat` / `off` modes, setpoint in °F, `current_temperature` from the water-temp probe, `hvac_action` reports `heating` / `idle` / `off`                                          |
 | `sensor`        | **Water temperature**, **Air temperature**, **Heater mode** (Off / Auto idle / Heating / …), **Heater cooldown** (live 1 Hz countdown), **Filter pump power** (W)                                                                   |
 | `sensor` (pump) | **Pump speed** (RPM), **Pump program** (Off / Priming / the running program's name from the app), **Pump timer remaining** (egg-timer minutes)                                                                                      |
@@ -27,6 +28,7 @@ The integration is configured per Pentair account and surfaces one Home Assistan
 
 ### Notable behaviors
 
+- **Pump buttons press the app's buttons, nothing more.** **Run** starts a program with the speed and egg timer set in the app. **Stop pump** stops the pump and leaves it disabled, so its schedules don't run (the **Pump enabled** sensor turns off) until you run a program or press **Resume pump schedules**. A program set to run on a schedule has no Run action; use **Resume pump schedules**. Presses are refused while the pump reports an alarm.
 - **Heater cooldown sensor ticks every second.** The Pentair Cloud only pushes the cooldown counter every 10–30 s; the entity re-anchors on each push and ticks locally in between so dashboards see a smooth countdown. It snaps to 0 the moment the pump reports 0 W.
 
 ## Service actions
