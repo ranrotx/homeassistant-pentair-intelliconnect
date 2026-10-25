@@ -16,6 +16,7 @@ from custom_components.pentair_pool.const import (
     PARALLEL_UPDATES as PARALLEL_UPDATES,
 )
 from custom_components.pentair_pool.entity_utils.capabilities import CAP_HEATER, CAP_WATER_TEMP, capability_present
+from custom_components.pentair_pool.entity_utils.relay import installed_relays
 
 from .cooldown import PentairPoolCooldownCountdown
 from .pump import (
@@ -24,6 +25,7 @@ from .pump import (
     PentairPoolPumpSpeedSensor,
     PentairPoolPumpTimerRemainingSensor,
 )
+from .relay_timer import PentairPoolRelayTimerRemainingSensor
 from .telemetry import SENSORS, PentairPoolFieldSensor
 
 if TYPE_CHECKING:
@@ -65,6 +67,10 @@ async def async_setup_entry(
         # without a heater even though the relay-timer field (ras0) exists.
         if FIELD_RAS0 in fields and capability_present(dev, CAP_HEATER):
             entities.append(PentairPoolCooldownCountdown(coordinator, device_id))
+        entities.extend(
+            PentairPoolRelayTimerRemainingSensor(coordinator, device_id, relay)
+            for relay in installed_relays(dev, lighting=False)
+        )
     async_add_entities(entities)
 
 

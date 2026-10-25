@@ -10,7 +10,7 @@ for type-safe access to the config entry's runtime data.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -35,3 +35,6 @@ class PentairPoolData:
     client: PentairPoolApiClient
     coordinator: PentairPoolDataUpdateCoordinator
     integration: Integration
+    # Relay egg-timer duration chosen in HA (minutes), keyed by the timer
+    # number entity's unique ID; read by the matching Start button.
+    relay_timer_minutes: dict[str, int] = field(default_factory=dict)

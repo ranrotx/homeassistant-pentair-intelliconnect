@@ -53,19 +53,29 @@ TOKEN_REFRESH_MARGIN_SECONDS = 60
 # controller (on the captured account Relay 1 = Pentair Color Light, Relay 2 =
 # Blower -- see the listdevices `devices` manifest). Both relays share the same
 # field layout: raN/rbN. Relay state/power push only over REST (not the WS), so
-# the derived on/off entities refresh on the 60 s poll.
+# relay entities refresh on the REST poll.
 FIELD_RA0 = "ra0"  # Relay1_Manual_Schedule (on/off + schedule mode)
 FIELD_RA1 = "ra1"  # Relay1_Start_Time (UTC seconds-of-day)
 FIELD_RA2 = "ra2"  # Relay1_End_Time
 FIELD_RA3 = "ra3"  # Relay1_Timer (configured timer duration, seconds)
 FIELD_RA4 = "ra4"  # Relay1_Power (watts, RO)
+FIELD_RA5 = "ra5"  # Relay1_Product_ID (7-9 = color lights)
 FIELD_RA8 = "ra8"  # Relay1_ColorLight_Mode (0-18; color/theme index when a light)
+FIELD_RA9 = "ra9"  # second schedule start (read by the app; not reported by all firmware)
+FIELD_RA10 = "ra10"  # second schedule stop
 FIELD_RAS0 = "ras0"  # Relay1_Timer_Status (live pump-stop countdown, RO seconds)
 FIELD_RB0 = "rb0"  # Relay2_Manual_Schedule (on/off + schedule mode)
+FIELD_RB1 = "rb1"  # Relay2_Start_Time (UTC seconds-of-day)
+FIELD_RB2 = "rb2"  # Relay2_Stop_Time
+FIELD_RB3 = "rb3"  # Relay2_Timer
 FIELD_RB4 = "rb4"  # Relay2_Power (watts, RO)
+FIELD_RB5 = "rb5"  # Relay2_Product_ID
 FIELD_RB8 = "rb8"  # Relay2_ColorLight_Mode (0-18; color/theme index when a light)
+FIELD_RB9 = "rb9"  # second schedule start
+FIELD_RB10 = "rb10"  # second schedule stop
 FIELD_RBS0 = "rbs0"  # Relay2_Timer_Status (live stop countdown, RO seconds)
-FIELD_P1 = "p1"  # Relay1_Egg_Timer
+FIELD_P1 = "p1"  # Relay1_Egg_Timer (seconds; the app writes it together with ra3)
+FIELD_P2 = "p2"  # Relay2_Egg_Timer (seconds; written together with rb3)
 FIELD_HTD1 = "htd1"  # Heater_Mode
 FIELD_HTD2 = "htd2"  # Heater_SetPoint (tenths of degF)
 FIELD_HTD13 = "htd13"  # Heater aux flag (written with htd1=0 on OFF)
@@ -137,12 +147,33 @@ FIELD_PROGRAM_NAMES = ("p5", "p6", "p7", "p8")
 FIELD_T0 = "t0"  # Current_Water_Temp (RO, degF integer)
 FIELD_T1 = "t1"  # FP_Outside_Temp (RO, degF integer, S16 so signed)
 
-# --- ra0 state values (filter pump state machine) ----------------------------
-RA0_OFF_NO_SCHEDULE = "0"
-RA0_ON_NO_SCHEDULE = "1"
-RA0_OFF_SCHEDULED = "2"
-RA0_ON_SCHEDULED = "3"
-RA0_TIMER_DONE_SCHEDULED = "4"
+# --- RelayN_Manual_Schedule (ra0/rb0) values ---------------------------------
+# Decoded from the Android app's getPayloadOnRelay (v4.2.21). With no schedule
+# the relay is plainly off (0) or on (1). With a schedule it follows it (2),
+# is held on (3), or is held off during a running schedule window (4).
+RELAY_OFF = "0"
+RELAY_ON = "1"
+RELAY_FOLLOW_SCHEDULE = "2"
+RELAY_ON_OVERRIDE = "3"
+RELAY_OFF_OVERRIDE = "4"
+
+# Schedule start/stop fields hold UTC seconds-of-day; any larger value (the app
+# writes 100000) means that schedule is disabled.
+RELAY_SCHEDULE_MAX = 86399
+
+# Relay product IDs the app treats as color lights.
+RELAY_COLOR_LIGHT_PRODUCTS = frozenset({"7", "8", "9"})
+
+# Relay power (W) above which the accessory itself is running. A blower relay
+# reads about 10 W while the controller ramps the pump up before starting the
+# blower, and about 720 W once the blower runs (measured 2026-10-25).
+RELAY_RUNNING_MIN_WATTS = 50
+
+# Relay egg-timer durations offered in HA (minutes), and the default when
+# neither HA nor the controller has one yet.
+RELAY_TIMER_MIN_MINUTES = 1
+RELAY_TIMER_MAX_MINUTES = 1440
+RELAY_TIMER_DEFAULT_MINUTES = 10
 
 # --- htd1 values --------------------------------------------------------------
 # Empirically confirmed by cross-referencing the Pentair Home app's UI:

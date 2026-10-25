@@ -41,7 +41,7 @@
       "message": "Failed to update data from Pentair Cloud."
     },
     "command_failed": {
-      "message": "Pentair Cloud did not accept the pump command."
+      "message": "Pentair Cloud did not accept the command."
     },
     "pump_alarm": {
       "message": "The pump reports alarm {alarm}. Clear it in the Pentair app, then try again."

@@ -1,4 +1,4 @@
-"""Button platform for pentair_pool (IntelliFlo pump program start/stop)."""
+"""Button platform for pentair_pool (IntelliFlo pump program start/stop, relay timers)."""
 
 from __future__ import annotations
 
@@ -11,8 +11,10 @@ from custom_components.pentair_pool.const import (
     FIELD_PROGRAM_MODES,
     PARALLEL_UPDATES as PARALLEL_UPDATES,
 )
+from custom_components.pentair_pool.entity_utils.relay import installed_relays
 
 from .pump_command import PentairPoolPumpButtonDescription, PentairPoolPumpCommandButton
+from .relay_timer import PentairPoolRelayTimerButton
 
 if TYPE_CHECKING:
     from custom_components.pentair_pool.data import PentairPoolConfigEntry
@@ -51,11 +53,16 @@ async def async_setup_entry(
     """Add pump buttons for every IntelliFlo VSF pump (devices reporting `ifs2`).
 
     One Run button per program slot the pump reports (`ifd0`-`ifd3`), plus
-    Stop and Resume schedules.
+    Stop and Resume schedules. Also a Start timer button for each installed
+    aux relay that isn't a light.
     """
     coordinator = entry.runtime_data.coordinator
     entities = []
     for device_id, dev in (coordinator.data or {}).items():
+        entities.extend(
+            PentairPoolRelayTimerButton(coordinator, device_id, relay)
+            for relay in installed_relays(dev, lighting=False)
+        )
         fields = dev.get("fields") or {}
         if FIELD_IFS2 not in fields:
             continue
