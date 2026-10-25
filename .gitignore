@@ -19,6 +19,9 @@ node_modules/
 
 # AI agent temporary scratch files and planning notes
 .ai-scratch/
+# Per-user AI agent local state (Claude Code local settings, oh-my-claudecode)
+.claude/settings.local.json
+.omc/
 
 # Local DevContainer environment overrides (user-specific, see .devcontainer/.env.local.example)
 .devcontainer/.env.local
