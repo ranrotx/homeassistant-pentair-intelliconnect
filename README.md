@@ -15,14 +15,15 @@ The integration is reverse-engineered from the official Pentair Home mobile app;
 
 ## Platforms and entities
 
-The integration is configured per Pentair account and surfaces one Home Assistant device per IntelliConnect controller on that account. Entities are only created if the controller actually reports the underlying field, so accessories you don't own (for example, a salt cell on a chlorine-tab pool) won't produce orphan entities.
+The integration is configured per Pentair account and surfaces one Home Assistant device per IntelliConnect controller on that account. Entities are only created if the controller reports the underlying field and its accessory list (the same list the Pentair app uses) includes the hardware, so accessories you don't own (for example, a heater or water-temperature probe on a fountain-only controller) won't produce orphan entities.
 
-| Platform        | Entities                                                                                                                                                                                   |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `binary_sensor` | **Online** (connectivity), **Alarm** (problem flag), **Filter pump running** (true while Relay 1 draws power)                                                                              |
-| `climate`       | **Heater** — HVAC entity wrapping the pool heater. `heat` / `off` modes, setpoint in °F, `current_temperature` from the water-temp probe, `hvac_action` reports `heating` / `idle` / `off` |
-| `sensor`        | **Water temperature**, **Air temperature**, **Heater mode** (Off / Auto idle / Heating / …), **Heater cooldown** (live 1 Hz countdown), **Filter pump power** (W)                          |
-| `sensor` (salt) | **Chlorine actual** (%), **Salt** (ppm), **Salt cell temperature**, **Salt cell hours**, **Boost remaining** (s), **Salt cell model**, **Salt cell firmware**                              |
+| Platform        | Entities                                                                                                                                                                                                                            |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `binary_sensor` | **Online** (connectivity), **Alarm** (problem flag), **Filter pump running** (pump speed/power above 0), **Pump enabled**, one on/off sensor per installed aux relay, named from the app (e.g. **Blower**, **Pentair Color Light**) |
+| `climate`       | **Heater** — HVAC entity wrapping the pool heater. `heat` / `off` modes, setpoint in °F, `current_temperature` from the water-temp probe, `hvac_action` reports `heating` / `idle` / `off`                                          |
+| `sensor`        | **Water temperature**, **Air temperature**, **Heater mode** (Off / Auto idle / Heating / …), **Heater cooldown** (live 1 Hz countdown), **Filter pump power** (W)                                                                   |
+| `sensor` (pump) | **Pump speed** (RPM), **Pump program** (Off / Priming / the running program's name from the app), **Pump timer remaining** (egg-timer minutes)                                                                                      |
+| `sensor` (salt) | **Chlorine actual** (%), **Salt** (ppm), **Salt cell temperature**, **Salt cell hours**, **Boost remaining** (s), **Salt cell model**, **Salt cell firmware**                                                                       |
 
 ### Notable behaviors
 

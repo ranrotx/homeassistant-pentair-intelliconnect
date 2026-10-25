@@ -6,6 +6,8 @@
 **Primary goal:** Let Home Assistant start and monitor the **fountain egg timer** (run-for-N-minutes then auto-off) and control the fountain on/off, matching the Pentair Home app.
 **Secondary goal:** Surface the other relays that aren't modeled yet (Blower, Pentair Color Light).
 
+> **Status (2026-10-25):** multi-controller support already worked. The fountain turned out to be an IntelliFlo VSF pump (`ifs*` fields), not a relay. Read-only pump entities are built. Starting and stopping programs, which covers the egg-timer goal, is still open: see [`intelliconnect-program-control.md`](intelliconnect-program-control.md).
+
 ---
 
 ## 0. Correction from an earlier draft — read this first

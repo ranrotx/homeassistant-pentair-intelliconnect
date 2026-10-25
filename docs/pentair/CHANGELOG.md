@@ -2,6 +2,16 @@
 
 Notable code-level changes during reverse-engineering / iteration sessions. Higher-level project status is in `STATUS.md`.
 
+## 2026-07-03 → 2026-10-25 — VSF pumps, capability gating, read-only controls
+
+Branch `feat/vsf-pump-and-capability-gating`, tested on a two-controller account (Main Control + a Feature Control fountain), both with IntelliFlo VSF pumps.
+
+1. **Real-time VSF pump sensors (`ifs*`).** Pump power prefers `ifs3` over `ra4`, pump running prefers `ifs4`/`ifs3`, and there are new pump speed, pump program (`ifs2`) and timer-remaining (`ifs27`, minutes) sensors. On VSF accounts the `ra*` relay fields never push over the WebSocket.
+2. **Capability gating.** Entities are gated on the `listdevices` accessory manifest (`entity_utils/capabilities.py`), so the fountain controller no longer gets phantom heater, water-temperature or relay entities.
+3. **Aux relays and pump enable.** Added read-only binary sensors per installed relay, named from the manifest (Blower, Pentair Color Light), and a pump-enabled sensor (`ifs1` = 10).
+4. **Removed control entities.** Removed the Relay-1 filter pump switch, the Daily Schedule switch and the schedule times (Relay 1 is the Color Light on this account), and the chlorine output slider. Schedules, programs and chlorine output are managed in the Pentair app. The heater climate entity is still writable.
+5. **Program start/stop: research in progress.** See [`../intelliconnect-program-control.md`](../intelliconnect-program-control.md). `api/client.py` still has temporary debug logging of WebSocket `device_data` frames for field captures.
+
 ## 2026-05-12 — Session 2 (HA integration brought live)
 
 Starting state: integration files copied into the HACS blueprint template, HA running in a VS Code devcontainer, config flow returning `"Invalid handler specified"`.

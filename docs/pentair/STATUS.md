@@ -1,10 +1,10 @@
 # Pentair IntelliConnect integration — project status
 
-Snapshot of where things are so any session in the future can pick up cleanly. Last updated 2026-05-12.
+Snapshot of where things are so any session in the future can pick up cleanly. Last updated 2026-10-25 (fork branch `feat/vsf-pump-and-capability-gating`).
 
 ## 1. What this is
 
-A Home Assistant custom integration that talks to Pentair Cloud (the service behind the _Pentair Home_ mobile app). Reverse-engineered from `com.pentair.pentairhome v4.2.18`. Currently tested against one IntelliConnect (`deviceType=PIF0`) with a single-speed filter pump, a heater, and an IntelliChlor salt cell.
+A Home Assistant custom integration that talks to Pentair Cloud (the service behind the _Pentair Home_ mobile app). Reverse-engineered from `com.pentair.pentairhome v4.2.18`. Originally tested against one IntelliConnect (`deviceType=PIF0`) with a single-speed filter pump, a heater, and an IntelliChlor salt cell. Since 2026-07 it has also been tested on a two-controller account: Main Control (IntelliFlo VSF pump, heater, IntelliChlor, Color Light on Relay 1, Blower on Relay 2) and Feature Control (an IntelliFlo VSF fountain pump only).
 
 Reverse-engineering artifacts (mitmproxy captures, Frida hooks, decompiled APK, the full Pentair Cloud API reference) live in a separate research workspace outside this integration's repo, and are not required to build or run this integration. This document focuses on the integration's state, not the API itself.
 
@@ -14,27 +14,28 @@ Reverse-engineering artifacts (mitmproxy captures, Frida hooks, decompiled APK, 
 
 Confirmed end-to-end on a live HA instance:
 
-| Entity                                     | Source field(s)             | Read                           | Write                                      |
-| ------------------------------------------ | --------------------------- | ------------------------------ | ------------------------------------------ |
-| `switch.<dev>_filter_pump`                 | `ra4` (read), `ra0` (write) | ✅ physical state              | ✅ override on/off                         |
-| `switch.<dev>_daily_schedule`              | `ra0`                       | ✅                             | ✅ enable/disable                          |
-| `climate.<dev>_heater`                     | `htd1`, `htd2`, `htd13`     | ✅                             | ✅ HVAC OFF/HEAT + setpoint (tenths of °F) |
-| `number.<dev>_chlorine_output`             | `icd1`                      | ✅                             | ✅ 0–100 % slider                          |
-| `time.<dev>_daily_schedule_start`          | `ra1` (UTC seconds → local) | ✅                             | ✅                                         |
-| `time.<dev>_daily_schedule_end`            | `ra2` (UTC seconds → local) | ✅                             | ✅                                         |
-| `sensor.<dev>_filter_pump_power`           | `ra4`                       | ✅ W                           | —                                          |
-| `sensor.<dev>_chlorine_output_actual`      | `ics1`                      | ✅ %                           | —                                          |
-| `sensor.<dev>_salt_level`                  | `ics2`                      | ✅ ppm                         | —                                          |
-| `sensor.<dev>_salt_cell_water_temperature` | `ics9`                      | ✅ °F                          | —                                          |
-| `sensor.<dev>_boost_remaining`             | `ics13`                     | ✅ s                           | —                                          |
-| `sensor.<dev>_salt_cell_lifetime_hours`    | `ics15`                     | ✅ h                           | —                                          |
-| `sensor.<dev>_heater_cooldown`             | `htd14`                     | ✅ s (likely config, not live) | —                                          |
-| `sensor.<dev>_salt_cell_firmware`          | `ics11`                     | ✅ string                      | —                                          |
-| `sensor.<dev>_salt_cell_model`             | `ics12`                     | ✅ string                      | —                                          |
-| `binary_sensor.<dev>_online`               | top-level `online`          | ✅                             | —                                          |
-| `binary_sensor.<dev>_alarm`                | top-level `alarm`           | ✅                             | —                                          |
+| Entity                                     | Source field(s)               | Read                           | Write                                      |
+| ------------------------------------------ | ----------------------------- | ------------------------------ | ------------------------------------------ |
+| `climate.<dev>_heater`                     | `htd1`, `htd2`, `htd13`       | ✅                             | ✅ HVAC OFF/HEAT + setpoint (tenths of °F) |
+| `sensor.<dev>_filter_pump_power`           | `ifs3`, fallback `ra4`        | ✅ W (real time on VSF)        | —                                          |
+| `sensor.<dev>_pump_speed`                  | `ifs4`                        | ✅ RPM                         | —                                          |
+| `sensor.<dev>_pump_program`                | `ifs2`, names `p5`–`p8`       | ✅ Off / Priming / program     | —                                          |
+| `sensor.<dev>_pump_timer_remaining`        | `ifs27`                       | ✅ min (diagnostic)            | —                                          |
+| `sensor.<dev>_chlorine_output_actual`      | `ics1`                        | ✅ %                           | —                                          |
+| `sensor.<dev>_salt_level`                  | `ics2`                        | ✅ ppm                         | —                                          |
+| `sensor.<dev>_salt_cell_water_temperature` | `ics9`                        | ✅ °F                          | —                                          |
+| `sensor.<dev>_boost_remaining`             | `ics13`                       | ✅ s                           | —                                          |
+| `sensor.<dev>_salt_cell_lifetime_hours`    | `ics15`                       | ✅ h                           | —                                          |
+| `sensor.<dev>_heater_cooldown`             | `htd14`                       | ✅ s (likely config, not live) | —                                          |
+| `sensor.<dev>_salt_cell_firmware`          | `ics11`                       | ✅ string                      | —                                          |
+| `sensor.<dev>_salt_cell_model`             | `ics12`                       | ✅ string                      | —                                          |
+| `binary_sensor.<dev>_online`               | top-level `online`            | ✅                             | —                                          |
+| `binary_sensor.<dev>_alarm`                | top-level `alarm`             | ✅                             | —                                          |
+| `binary_sensor.<dev>_filter_pump_running`  | `ifs4`/`ifs3`, fallback `ra4` | ✅                             | —                                          |
+| `binary_sensor.<dev>_pump_enabled`         | `ifs1` (10 = enabled)         | ✅                             | —                                          |
+| `binary_sensor.<dev>_<relay nickname>`     | `ra0`/`ra4`, `rb0`/`rb4`      | ✅ on/off (60 s REST lag)      | —                                          |
 
-Round-trip write verified for: filter pump on/off, Daily Schedule on/off, chlorine setpoint up/down, heater HVAC mode + setpoint, schedule start/end time edits.
+Round-trip write verified for heater HVAC mode + setpoint. The filter pump switch, Daily Schedule switch, schedule start/end times, and chlorine slider have been removed: on VSF accounts Relay 1 is not the pump (it drives the Color Light here), and schedules, programs and chlorine output are now managed only in the Pentair app. Entities are gated on the `listdevices` accessory manifest (`entity_utils/capabilities.py`).
 
 ### Known issues / pending
 
@@ -47,19 +48,19 @@ Round-trip write verified for: filter pump on/off, Daily Schedule on/off, chlori
    - A custom service `pentair_pool.start_boost {duration_seconds}`
    - The boost-remaining sensor already exists; just needs the trigger.
 
-3. **Pump egg-timer (`p1`)** not exposed. The pump detail page in the app has a Timer card that we haven't tested. By symmetry with the salt-cell boost, expect the same write-once-then-watch-countdown pattern but with field `p1`. Untested.
+3. **IntelliFlo program start/stop** not exposed. On VSF pumps the app's Program 1–4 cards map to the `ifd*` SpeedN fields, and the running program is `ifs2`. Starting or stopping a program changes no stored field, and test writes to `ifs1`/`ifs2`/`dr0` didn't start the pump. Next step is a mitmproxy capture of the app; see [`../intelliconnect-program-control.md`](../intelliconnect-program-control.md).
 
 4. **Heater egg-timer & schedule** not exposed. Heater detail page UI exists but was empty (no times set on this account). Likely `p2` (egg-timer) and `htd3`/`htd4` (schedule start/end UTC seconds) by symmetry with the pump. Unverified.
 
 5. **Token refresh** is implemented but unverified live. The test session has been < 1 hour each run so the refresh path (`REFRESH_TOKEN_AUTH`) hasn't been exercised. Leave HA running > 1 h to validate.
 
-6. **Multiple devices per account** is theoretically supported (the coordinator iterates `list_devices()`) but only tested with one IntelliConnect.
+6. **Multiple devices per account** works: confirmed live with two IntelliConnect controllers on one account (2026-07).
 
 7. **Non-PIF0 device types** (`IF31` IntelliFlo, `ICT1` IntelliCenter, `WQM1` ChemCheck, etc.) — field codes unknown. The auth/REST/WS plumbing should work for them, but no entities will spawn because the platform gating checks for PIF0-specific fields.
 
 8. **`binary_sensor.intelliconnect_alarm`** has been reading `on` throughout the session. Worth checking what alarm code is being raised (likely in `ics3` for the salt cell). Not yet decoded.
 
-9. **Water-temperature sensor** (separate from salt cell temp) — present in the `devices` map under the "Water Temperature" component name, but the underlying field code isn't yet surfaced as a sensor. Same for "Air Temperature".
+9. **Water/air temperature sensors** — done: `t0` (water, gated on the "Water Temperature" accessory) and `t1` (air).
 
 10. **Blueprint's options flow** still has stale demo fields (`update_interval_hours`, `enable_debugging`, `custom_icon`). Imports were stubbed to satisfy `from ...const import DEFAULT_*`; the actual options dialog isn't wired to anything functional. Either remove it or wire the poll interval to real config.
 
@@ -120,7 +121,7 @@ The captured-traffic archives (mitmproxy `.mitm` files, WS-frame JSONL) and Frid
    HA UI / automation
         │
         ▼
-   Entities (switch/climate/number/sensor/binary_sensor/time)
+   Entities (climate/sensor/binary_sensor)
         │  read coordinator.data
         │  write via coordinator.async_set_fields()
         ▼
@@ -238,29 +239,21 @@ homeassistant-pentair-intelliconnect/
 │   ├── config_flow.py                         (blueprint backwards-compat shim)
 │   ├── config_flow_handler/                   (blueprint config flow — works as-is)
 │   │
-│   ├── switch/
-│   │   ├── __init__.py
-│   │   ├── pump.py                            Filter pump (is_on=ra4>0; writes ra0)
-│   │   └── schedule.py                        Daily Schedule enable/disable
-│   │
 │   ├── climate/
 │   │   ├── __init__.py
 │   │   └── heater.py                          OFF/HEAT + tenths-of-°F setpoint
 │   │
-│   ├── number/
-│   │   ├── __init__.py
-│   │   └── chlorine_setpoint.py               icd1, 0–100 % slider
-│   │
-│   ├── time/
-│   │   ├── __init__.py
-│   │   └── schedule.py                        ra1/ra2 UTC↔local conversion
-│   │
 │   ├── sensor/
 │   │   ├── __init__.py
-│   │   └── telemetry.py                       9 read-only field-backed sensors
+│   │   ├── cooldown.py                        heater cooldown countdown (1 Hz local tick)
+│   │   ├── pump.py                            VSF power/speed/program/timer (ifs*)
+│   │   └── telemetry.py                       read-only field-backed sensors
 │   │
 │   ├── binary_sensor/
 │   │   ├── __init__.py
+│   │   ├── pump_enabled.py                    ifs1 enable state
+│   │   ├── pump_running.py                    ifs4/ifs3 (fallback ra4)
+│   │   ├── relay.py                           aux relays named from the manifest
 │   │   └── status.py                          online + alarm
 │   │
 │   ├── service_actions/
@@ -277,6 +270,8 @@ homeassistant-pentair-intelliconnect/
 │   ├── _pentair_test.py                       in-container Python driver
 │   ├── _probe.py                              direct API client probe (uses HA venv)
 │   ├── _cooldown_capture.py                   polling diff capture template
+│   ├── _field_diff.py                         read-only REST field-diff capture
+│   ├── _mitm_pentair_log.py                   mitmproxy addon for app-traffic capture
 │   ├── develop, setup/, check, lint, test...  blueprint scripts
 │   │
 └── docs/
@@ -320,9 +315,10 @@ jq -c 'select(.from_client==false) | .content | fromjson | .data.fields' \
 
 Most impactful next things, in rough priority order:
 
+0. **Capture the IntelliFlo program start/stop command** with mitmproxy while the Mac and iPhone share Wi-Fi, then add per-program start buttons and a stop button. Procedure and findings: [`../intelliconnect-program-control.md`](../intelliconnect-program-control.md).
 1. **Re-run the cooldown capture under correct conditions.** The current `script/_cooldown_capture.py` template polls diagnostics every 1.5 s and diffs field-by-field. Just needs to be invoked when the heater is actually heating (htd1==1) and the schedule isn't masking the effect. Goal: identify the live cooldown field, then add `binary_sensor.cooldown_active` and `cooldown_remaining` (in seconds).
 2. **Expose the salt-cell boost as a control.** Either button+number pair, or service `pentair_pool.start_boost`. Field codes already known (icd2 + icd3).
-3. **Water/Air temperature sensors.** The dashboard shows them; we have the WS data; just need to wire up entities. The fields are under the `devices` map (not the flat `fields` map) — small refactor in `sensor/telemetry.py`.
+3. ~~**Water/Air temperature sensors.**~~ Done (`t0`, `t1`).
 4. **Test token refresh.** Leave HA running for 90 minutes (past the 1-hour token expiry) and confirm the WS reconnect + REST calls keep working.
 5. **Decode `ics3` alarm code.** The `binary_sensor.intelliconnect_alarm` keeps reading ON; need to find the lookup table (probably in the JS bundle's `IC1.Errors.*` translation keys).
 6. **`htd1` mode values 2 and 4.** We've only observed 0/1/3. The bundle's `HeaterModes` map names them (`AutoHeating`, `ScheduleRunning`, `Timer`, etc.) but the numeric mapping isn't pinned. Could surface via a longer real-world capture.
