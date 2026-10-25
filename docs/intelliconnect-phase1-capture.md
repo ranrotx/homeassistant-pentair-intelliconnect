@@ -1,5 +1,7 @@
 # Phase 1 Capture Protocol — Egg Timer + Unmodeled Relays
 
+**Status (2026-10-25):** finished, and the temporary `WS device_data` debug logging this protocol relies on has been removed from `api/client.py`. Kept for reference; to repeat a capture, re-add a debug log of the frame in `_handle_text`.
+
 Goal: capture the **exact field changes** the IntelliConnect pushes when you
 start/stop the fountain egg timer and toggle the Blower / Color Light in the
 Pentair Home app, so the HA entities can be built against confirmed ground
@@ -76,6 +78,4 @@ correlate. From that I can:
 
 ## Cleanup
 
-The debug log line in `api/client.py` is marked `TEMP capture instrumentation`
-and is safe to leave in (it's a no-op unless debug logging is on), but should be
-removed before the upstream PR once the fields are confirmed.
+Done: the temporary debug log line was removed from `api/client.py` on 2026-10-25.

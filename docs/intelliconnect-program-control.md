@@ -86,5 +86,3 @@ Live test on the fountain controller (Program 1: egg timer, 900 RPM, 61 min), 20
 ## 5. In the integration
 
 `button/pump_command.py` adds, for each device reporting `ifs2`: **Run _program name_** for each program slot (`ifd0`–`ifd3`), **Stop pump** (`6`) and **Resume pump schedules** (`5`). Presses follow the app's alarm and schedule-mode rules. Program settings stay in the Pentair app.
-
-Still to do: remove the temporary WebSocket debug logging in `api/client.py` (`_handle_text`) once no more field captures are needed.
