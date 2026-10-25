@@ -70,7 +70,7 @@ FIELD_HTD1 = "htd1"  # Heater_Mode
 FIELD_HTD2 = "htd2"  # Heater_SetPoint (tenths of degF)
 FIELD_HTD13 = "htd13"  # Heater aux flag (written with htd1=0 on OFF)
 FIELD_HTD14 = "htd14"  # Heater_Cooldown (seconds, RO)
-FIELD_ICD1 = "icd1"  # Chlor_Set_Percentage
+FIELD_ICD1 = "icd1"  # Chlor_Set_Percentage (set in the Pentair app; not written by this integration)
 FIELD_ICD2 = "icd2"  # Boost_Mode_RPM (one-shot)
 FIELD_ICD3 = "icd3"  # Boost_Mode_Timer (one-shot, seconds)
 FIELD_ICS1 = "ics1"  # Chlor_Percentage (actual, RO)

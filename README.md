@@ -9,7 +9,7 @@
 [![hacs][hacsbadge]][hacs]
 ![Project Maintenance][maintenance-shield]
 
-A Home Assistant custom integration for **Pentair IntelliConnect** pool controllers, communicating with the Pentair Cloud over HTTPS + WebSocket. It exposes the filter pump, pool heater, IntelliChlor salt cell, and the daily schedule as native Home Assistant entities.
+A Home Assistant custom integration for **Pentair IntelliConnect** pool controllers, communicating with the Pentair Cloud over HTTPS + WebSocket. It exposes the pumps, pool heater, and IntelliChlor salt cell as native Home Assistant entities. Pump schedules, programs, and the chlorine output setting are managed in the Pentair app; the integration does not change them.
 
 The integration is reverse-engineered from the official Pentair Home mobile app; there is no public Pentair API. It authenticates against the same AWS Cognito user pool as the app and subscribes to the same real-time WebSocket, so state changes from the wall panel or the official app show up in Home Assistant within a second.
 
@@ -21,17 +21,12 @@ The integration is configured per Pentair account and surfaces one Home Assistan
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `binary_sensor` | **Online** (connectivity), **Alarm** (problem flag), **Filter pump running** (true while Relay 1 draws power)                                                                              |
 | `climate`       | **Heater** — HVAC entity wrapping the pool heater. `heat` / `off` modes, setpoint in °F, `current_temperature` from the water-temp probe, `hvac_action` reports `heating` / `idle` / `off` |
-| `number`        | **Chlorine output** — IntelliChlor salt-cell output setpoint (0–100 %, slider)                                                                                                             |
 | `sensor`        | **Water temperature**, **Air temperature**, **Heater mode** (Off / Auto idle / Heating / …), **Heater cooldown** (live 1 Hz countdown), **Filter pump power** (W)                          |
 | `sensor` (salt) | **Chlorine actual** (%), **Salt** (ppm), **Salt cell temperature**, **Salt cell hours**, **Boost remaining** (s), **Salt cell model**, **Salt cell firmware**                              |
-| `switch`        | **Filter pump** (manual override, preserves the schedule bit), **Daily schedule** (enable/disable the recurring schedule, preserves the pump on/off bit)                                   |
-| `time`          | **Daily schedule start**, **Daily schedule stop** (stored as UTC seconds-of-day on the controller, displayed in your Home Assistant timezone)                                              |
 
 ### Notable behaviors
 
-- **Filter pump switch `is_on` follows reality, not intent.** It reads ON whenever the pump is actually circulating water — manual override, scheduled run, or heater cooldown extending the run — matching what the Pentair app shows. When you toggle the switch, an optimistic state is held until the controller's reported wattage agrees. Tap OFF during heater cooldown and the switch stays OFF for the whole cooldown window; the pump physically stops a few minutes later when the firmware releases the relay.
 - **Heater cooldown sensor ticks every second.** The Pentair Cloud only pushes the cooldown counter every 10–30 s; the entity re-anchors on each push and ticks locally in between so dashboards see a smooth countdown. It snaps to 0 the moment the pump reports 0 W.
-- **Schedule times are timezone-aware.** Writes always go out as UTC seconds-of-day (what the firmware expects) using Home Assistant's configured timezone for the conversion.
 
 ## Service actions
 
@@ -87,7 +82,7 @@ logger:
 
 ### "Pump is on but I didn't tell it to"
 
-Check the **Daily schedule** switch and the **Daily schedule start / stop** times. The schedule fires every day at those times regardless of the **Filter pump** switch state. The **Filter pump running** binary sensor reports the physical truth (Relay 1 power), which is the source for whether the pump is actually circulating water.
+Check the pump's programs and schedules in the Pentair app — a scheduled program starts the pump on its own. The **Filter pump running** binary sensor reports whether the pump is actually running, and the **Pump program** sensor shows which program is active.
 
 ### Heater shows "Idle" but I set it to Heat
 
@@ -96,7 +91,7 @@ The Pentair heater has a two-step state machine: writing `heat` puts the firmwar
 ## Compatibility
 
 - Tested against IntelliConnect controllers (PIF0 device type) on US accounts (Cognito `us-west-2`)
-- Heater, IntelliChlor IC-40 salt cell, and Daily Schedule are wired up; pumps controlled directly via Relay 1
+- Heater and IntelliChlor IC-40 salt cell are wired up; IntelliFlo VSF pump state is read-only
 - EU Cognito pool constants are present in the source but have not yet been exercised — open an issue if you're on a EU account and willing to test
 
 ## Contributing

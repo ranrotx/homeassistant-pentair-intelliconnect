@@ -45,9 +45,6 @@
     "climate": {
       "heater": { "name": "Heater" }
     },
-    "number": {
-      "chlorine_setpoint": { "name": "Chlorine output" }
-    },
     "sensor": {
       "water_temperature": { "name": "Water temperature" },
       "air_temperature": { "name": "Air temperature" },
