@@ -20,18 +20,11 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from custom_components.pentair_pool.api import PentairPoolApiClientError
-from custom_components.pentair_pool.const import (
-    DOMAIN,
-    FIELD_C1,
-    FIELD_IFS18,
-    FIELD_PROGRAM_MODES,
-    FIELD_PROGRAM_NAMES,
-    IFS18_COMMAND_BLOCKED,
-    PROGRAM_MODE_SCHEDULE,
-)
+from custom_components.pentair_pool.const import DOMAIN, FIELD_C1
 from custom_components.pentair_pool.entity import PentairPoolEntity
+from custom_components.pentair_pool.entity_utils.pump_commands import check_pump_command, program_name
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
-from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.exceptions import HomeAssistantError
 
 if TYPE_CHECKING:
     from custom_components.pentair_pool.coordinator import PentairPoolDataUpdateCoordinator
@@ -59,30 +52,11 @@ class PentairPoolPumpCommandButton(ButtonEntity, PentairPoolEntity):
         """Bind to one device; program buttons are named after the program."""
         super().__init__(coordinator, description, device_id)
         if description.program is not None:
-            self._attr_translation_placeholders = {"program": self._program_name()}
-
-    def _program_name(self) -> str:
-        """Program's name from the app (`p5`-`p8`), else "Program N"."""
-        program = self.entity_description.program
-        name = (self.field_value(FIELD_PROGRAM_NAMES[program - 1]) or "").strip() if program else ""
-        return name or f"Program {program}"
+            self._attr_translation_placeholders = {"program": program_name(self, description.program)}
 
     async def async_press(self) -> None:
         """Check the pump can take the command, then send it."""
-        alarm = self.field_value(FIELD_IFS18)
-        if alarm in IFS18_COMMAND_BLOCKED:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="pump_alarm",
-                translation_placeholders={"alarm": str(alarm)},
-            )
-        program = self.entity_description.program
-        if program is not None and self.field_value(FIELD_PROGRAM_MODES[program - 1]) == PROGRAM_MODE_SCHEDULE:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="program_runs_on_schedule",
-                translation_placeholders={"program": self._program_name()},
-            )
+        check_pump_command(self, self.entity_description.program)
         try:
             await self.coordinator.async_set_fields(self._device_id, {FIELD_C1: self.entity_description.command})
         except PentairPoolApiClientError as err:

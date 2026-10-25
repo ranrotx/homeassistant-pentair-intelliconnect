@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from custom_components.pentair_pool.const import (
     FIELD_HTD1,
+    FIELD_HTS2,
     FIELD_IFS2,
     FIELD_IFS3,
     FIELD_IFS4,
@@ -19,6 +20,7 @@ from custom_components.pentair_pool.entity_utils.capabilities import CAP_HEATER,
 from custom_components.pentair_pool.entity_utils.relay import installed_relays
 
 from .cooldown import PentairPoolCooldownCountdown
+from .heater_timer import PentairPoolHeaterTimerRemainingSensor
 from .pump import (
     PentairPoolPumpPowerSensor,
     PentairPoolPumpProgramSensor,
@@ -42,7 +44,8 @@ async def async_setup_entry(
     """Create one field-backed sensor per (device, field).
 
     Also adds the live cooldown countdown for devices that expose `ras0`
-    (Relay1_Timer_Status).
+    (Relay1_Timer_Status) and the heater timer remaining (`hts2`) for
+    controllers with a heater.
     """
     coordinator = entry.runtime_data.coordinator
     entities = []
@@ -71,6 +74,8 @@ async def async_setup_entry(
             PentairPoolRelayTimerRemainingSensor(coordinator, device_id, relay)
             for relay in installed_relays(dev, lighting=False)
         )
+        if FIELD_HTS2 in fields and capability_present(dev, CAP_HEATER):
+            entities.append(PentairPoolHeaterTimerRemainingSensor(coordinator, device_id))
     async_add_entities(entities)
 
 

@@ -14,26 +14,27 @@ Reverse-engineering artifacts (mitmproxy captures, Frida hooks, decompiled APK, 
 
 Confirmed end-to-end on a live HA instance:
 
-| Entity                                     | Source field(s)               | Read                           | Write                                      |
-| ------------------------------------------ | ----------------------------- | ------------------------------ | ------------------------------------------ |
-| `climate.<dev>_heater`                     | `htd1`, `htd2`, `htd13`       | ✅                             | ✅ HVAC OFF/HEAT + setpoint (tenths of °F) |
-| `sensor.<dev>_filter_pump_power`           | `ifs3`, fallback `ra4`        | ✅ W (real time on VSF)        | —                                          |
-| `sensor.<dev>_pump_speed`                  | `ifs4`                        | ✅ RPM                         | —                                          |
-| `sensor.<dev>_pump_program`                | `ifs2`, names `p5`–`p8`       | ✅ Off / Priming / program     | —                                          |
-| `sensor.<dev>_pump_timer_remaining`        | `ifs27`                       | ✅ min (diagnostic)            | —                                          |
-| `sensor.<dev>_chlorine_output_actual`      | `ics1`                        | ✅ %                           | —                                          |
-| `sensor.<dev>_salt_level`                  | `ics2`                        | ✅ ppm                         | —                                          |
-| `sensor.<dev>_salt_cell_water_temperature` | `ics9`                        | ✅ °F                          | —                                          |
-| `sensor.<dev>_boost_remaining`             | `ics13`                       | ✅ s                           | —                                          |
-| `sensor.<dev>_salt_cell_lifetime_hours`    | `ics15`                       | ✅ h                           | —                                          |
-| `sensor.<dev>_heater_cooldown`             | `htd14`                       | ✅ s (likely config, not live) | —                                          |
-| `sensor.<dev>_salt_cell_firmware`          | `ics11`                       | ✅ string                      | —                                          |
-| `sensor.<dev>_salt_cell_model`             | `ics12`                       | ✅ string                      | —                                          |
-| `binary_sensor.<dev>_online`               | top-level `online`            | ✅                             | —                                          |
-| `binary_sensor.<dev>_alarm`                | top-level `alarm`             | ✅                             | —                                          |
-| `binary_sensor.<dev>_filter_pump_running`  | `ifs4`/`ifs3`, fallback `ra4` | ✅                             | —                                          |
-| `binary_sensor.<dev>_pump_enabled`         | `ifs1` (10 = enabled)         | ✅                             | —                                          |
-| `binary_sensor.<dev>_<relay nickname>`     | `ra0`/`ra4`, `rb0`/`rb4`      | ✅ on/off (60 s REST lag)      | —                                          |
+| Entity                                     | Source field(s)               | Read                           | Write                                                            |
+| ------------------------------------------ | ----------------------------- | ------------------------------ | ---------------------------------------------------------------- |
+| `climate.<dev>_heater`                     | `htd1`, `htd2`, `htd13`       | ✅                             | ✅ HVAC OFF/HEAT + setpoint (tenths of °F) + heater timer action |
+| `sensor.<dev>_heater_timer_remaining`      | `hts2`                        | ✅ s                           | —                                                                |
+| `sensor.<dev>_filter_pump_power`           | `ifs3`, fallback `ra4`        | ✅ W (real time on VSF)        | —                                                                |
+| `sensor.<dev>_pump_speed`                  | `ifs4`                        | ✅ RPM                         | —                                                                |
+| `sensor.<dev>_pump_program`                | `ifs2`, names `p5`–`p8`       | ✅ Off / Priming / program     | —                                                                |
+| `sensor.<dev>_pump_timer_remaining`        | `ifs27`                       | ✅ min (diagnostic)            | —                                                                |
+| `sensor.<dev>_chlorine_output_actual`      | `ics1`                        | ✅ %                           | —                                                                |
+| `sensor.<dev>_salt_level`                  | `ics2`                        | ✅ ppm                         | —                                                                |
+| `sensor.<dev>_salt_cell_water_temperature` | `ics9`                        | ✅ °F                          | —                                                                |
+| `sensor.<dev>_boost_remaining`             | `ics13`                       | ✅ s                           | —                                                                |
+| `sensor.<dev>_salt_cell_lifetime_hours`    | `ics15`                       | ✅ h                           | —                                                                |
+| `sensor.<dev>_heater_cooldown`             | `htd14`                       | ✅ s (likely config, not live) | —                                                                |
+| `sensor.<dev>_salt_cell_firmware`          | `ics11`                       | ✅ string                      | —                                                                |
+| `sensor.<dev>_salt_cell_model`             | `ics12`                       | ✅ string                      | —                                                                |
+| `binary_sensor.<dev>_online`               | top-level `online`            | ✅                             | —                                                                |
+| `binary_sensor.<dev>_alarm`                | top-level `alarm`             | ✅                             | —                                                                |
+| `binary_sensor.<dev>_filter_pump_running`  | `ifs4`/`ifs3`, fallback `ra4` | ✅                             | —                                                                |
+| `binary_sensor.<dev>_pump_enabled`         | `ifs1` (10 = enabled)         | ✅                             | —                                                                |
+| `binary_sensor.<dev>_<relay nickname>`     | `ra0`/`ra4`, `rb0`/`rb4`      | ✅ on/off (60 s REST lag)      | —                                                                |
 
 Round-trip write verified for heater HVAC mode + setpoint. The filter pump switch, Daily Schedule switch, schedule start/end times, and chlorine slider have been removed: on VSF accounts Relay 1 is not the pump (it drives the Color Light here), and schedules, programs and chlorine output are now managed only in the Pentair app. Entities are gated on the `listdevices` accessory manifest (`entity_utils/capabilities.py`).
 
@@ -50,7 +51,7 @@ Round-trip write verified for heater HVAC mode + setpoint. The filter pump switc
 
 3. **IntelliFlo program start/stop** not exposed. On VSF pumps the app's Program 1–4 cards map to the `ifd*` SpeedN fields, and the running program is `ifs2`. Starting or stopping a program changes no stored field, and test writes to `ifs1`/`ifs2`/`dr0` didn't start the pump. Next step is a mitmproxy capture of the app; see [`../intelliconnect-program-control.md`](../intelliconnect-program-control.md).
 
-4. **Heater egg-timer & schedule** not exposed. Heater detail page UI exists but was empty (no times set on this account). Likely `p2` (egg-timer) and `htd3`/`htd4` (schedule start/end UTC seconds) by symmetry with the pump. Unverified.
+4. **Heater timer** is exposed as the `pentair_pool.start_heater_timer` action plus `sensor.<dev>_heater_timer_remaining`. Decoded from the Android app (v4.2.21, `IC1_HeaterTimer`) and verified live on 2026-10-25: PUT `htd13` (Heater_EggTimer) in seconds, with `htd1=1` only if the heater is off. `hts2` (HeaterEggTimerStatus) then counts down in seconds, and at 0 the firmware sets `htd1=0` itself; `htd13` keeps its old value. Neither the timer nor heater-on starts a pump (verified live: heater on, water below setpoint, IntelliFlo enabled but stopped, pump stayed off), so the heater stays in Auto idle without flow. The `heating_pump_program` option covers this: the climate entity runs that program (`c1`) when HA turns the heater on or starts a timer while `ifs2` = 0, and after `htd1` = 0, `htd14` = 0 and a 120 s grace (heater fields only arrive with the REST poll) it sends `c1=6` then `c1=5` (`climate/heating_pump.py`). Pump start/stop for heating is not yet verified live. Heater schedules (`htd4`–`htd12`, UTC `YY MM DD HH mm` strings) are deliberately not exposed; they stay in the app. `htd1` values from the app: 2 = timer/schedule idle, 4 = timer/schedule heating. The app blocks heater writes while `ecs1` ≠ 0; the integration does the same.
 
 5. **Token refresh** is implemented but unverified live. The test session has been < 1 hour each run so the refresh path (`REFRESH_TOKEN_AUTH`) hasn't been exercised. Leave HA running > 1 h to validate.
 

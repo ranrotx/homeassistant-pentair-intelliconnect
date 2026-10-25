@@ -17,7 +17,12 @@ from typing import Any
 
 import voluptuous as vol
 
-from custom_components.pentair_pool.const import DEFAULT_ENABLE_DEBUGGING, DEFAULT_UPDATE_INTERVAL_HOURS
+from custom_components.pentair_pool.const import (
+    CONF_HEATING_PUMP_PROGRAM,
+    DEFAULT_ENABLE_DEBUGGING,
+    DEFAULT_UPDATE_INTERVAL_HOURS,
+    HEATING_PUMP_PROGRAM_NONE,
+)
 from homeassistant.helpers import selector
 
 
@@ -35,6 +40,16 @@ def get_options_schema(defaults: Mapping[str, Any] | None = None) -> vol.Schema:
     defaults = defaults or {}
     return vol.Schema(
         {
+            vol.Optional(
+                CONF_HEATING_PUMP_PROGRAM,
+                default=defaults.get(CONF_HEATING_PUMP_PROGRAM, HEATING_PUMP_PROGRAM_NONE),
+            ): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=[HEATING_PUMP_PROGRAM_NONE, "1", "2", "3", "4"],
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                    translation_key=CONF_HEATING_PUMP_PROGRAM,
+                ),
+            ),
             vol.Optional(
                 "update_interval_hours",
                 default=defaults.get("update_interval_hours", DEFAULT_UPDATE_INTERVAL_HOURS),

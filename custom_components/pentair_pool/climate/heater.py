@@ -1,29 +1,48 @@
-"""Pool-heater climate entity."""
+"""Pool-heater climate entity.
+
+Writes mirror the Pentair Android app's IntelliConnect heater screen (v4.2.21):
+
+  - on:        htd1=1 (Auto idle; firmware promotes to 3 when it fires)
+  - off:       htd1=0 + htd13=0 (also cancels a running heater timer)
+  - setpoint:  htd2 in tenths of degF
+  - timer:     htd13=<seconds>, plus htd1=1 only if the heater is off
+
+Like the app, every write is refused while the controller is in service mode
+(`ecs1` != 0). With the `heating_pump_program` option set, turning the heater
+on or starting a timer also runs a pump program for flow, and the pump is
+stopped again after the heater's cooldown (see `heating_pump.py`).
+"""
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
+from custom_components.pentair_pool.api import PentairPoolApiClientError
 from custom_components.pentair_pool.const import (
+    DOMAIN,
+    FIELD_ECS1,
     FIELD_HTD1,
     FIELD_HTD2,
     FIELD_HTD13,
     FIELD_HTD14,
+    FIELD_HTS2,
     FIELD_T0,
+    HEATER_TIMER_MAX_SECONDS,
+    HEATER_TIMER_MIN_SECONDS,
     HTD1_AUTO_IDLE,
-    HTD1_HEATING,
+    HTD1_HEATING_MODES,
     HTD1_LABELS,
     HTD1_OFF,
 )
 from custom_components.pentair_pool.entity import PentairPoolEntity
-from homeassistant.components.climate import (
-    ClimateEntity,
-    ClimateEntityDescription,
-    ClimateEntityFeature,
-    HVACAction,
-    HVACMode,
-)
+from homeassistant.components.climate import ClimateEntity, ClimateEntityDescription
+from homeassistant.components.climate.const import ClimateEntityFeature, HVACAction, HVACMode
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
+from homeassistant.core import callback
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+
+from .heating_pump import PentairPoolHeatingPump
 
 if TYPE_CHECKING:
     from custom_components.pentair_pool.coordinator import PentairPoolDataUpdateCoordinator
@@ -33,6 +52,9 @@ DESCRIPTION = ClimateEntityDescription(
     translation_key="heater",
     has_entity_name=True,
 )
+
+# ecs1 value for normal operation; anything else is a service/timeout mode.
+_ECS1_NORMAL = "0"
 
 
 class PentairPoolHeater(ClimateEntity, PentairPoolEntity):
@@ -51,10 +73,19 @@ class PentairPoolHeater(ClimateEntity, PentairPoolEntity):
         self,
         coordinator: PentairPoolDataUpdateCoordinator,
         device_id: str,
+        heating_pump_program: int | None = None,
     ) -> None:
-        """Bind to one device."""
+        """Bind to one device; `heating_pump_program` is the program run for flow, if any."""
         super().__init__(coordinator, DESCRIPTION, device_id)
         self._attr_name = "Heater"
+        self._heating_pump = PentairPoolHeatingPump(self, device_id, heating_pump_program)
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Stop a pump started for heating once the heater is done with it."""
+        if self._heating_pump.started:
+            self.hass.async_create_task(self._heating_pump.async_check_stop())
+        super()._handle_coordinator_update()
 
     @property
     def hvac_mode(self) -> HVACMode:
@@ -66,16 +97,17 @@ class PentairPoolHeater(ClimateEntity, PentairPoolEntity):
 
     @property
     def hvac_action(self) -> HVACAction:
-        """Active when firmware reports htd1 == 3 (firing); idle otherwise.
+        """Heating when the firmware reports htd1 == 3 or 4 (firing); idle otherwise.
 
-        htd1 == 1 is "Auto idle" -- heater is enabled and monitoring but the
-        burner is not lit. The firmware promotes 1 -> 3 once it decides to
-        fire (water below setpoint AND pump flow available).
+        htd1 == 1 is "Auto idle" (2 is the same under a timer or schedule) --
+        heater is enabled and monitoring but the burner is not lit. The
+        firmware promotes 1 -> 3 (2 -> 4) once it decides to fire (water below
+        setpoint AND pump flow available).
         """
         v = self.field_value(FIELD_HTD1)
         if v == HTD1_OFF:
             return HVACAction.OFF
-        if v == HTD1_HEATING:
+        if v in HTD1_HEATING_MODES:
             return HVACAction.HEATING
         return HVACAction.IDLE
 
@@ -102,11 +134,11 @@ class PentairPoolHeater(ClimateEntity, PentairPoolEntity):
             return None
 
     @property
-    def extra_state_attributes(self) -> dict[str, str | int | None]:
+    def extra_state_attributes(self) -> dict[str, str | int | bool | None]:
         """Surface heater-specific state that HVACAction can't represent.
 
         HA's `hvac_action` is a closed enum (off/heating/cooling/idle), so
-        the finer-grained Pentair mode (Auto Idle, Schedule Running, etc.)
+        the finer-grained Pentair mode (Auto Idle, timer or schedule, etc.)
         lives here as a free-form `heater_mode` attribute. `htd14` is the
         live cooldown countdown in seconds; the dedicated cooldown sensor
         ticks 1 Hz between server pushes for a smooth display.
@@ -116,6 +148,8 @@ class PentairPoolHeater(ClimateEntity, PentairPoolEntity):
             "heater_mode": HTD1_LABELS.get(htd1, f"Mode {htd1}") if htd1 is not None else None,
             "htd1_raw": htd1,
             "cooldown_seconds": self.field_value(FIELD_HTD14),
+            "timer_remaining_seconds": self.field_value(FIELD_HTS2),
+            "heating_pump_started": self._heating_pump.started,
         }
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
@@ -123,22 +157,59 @@ class PentairPoolHeater(ClimateEntity, PentairPoolEntity):
         temp = kwargs.get(ATTR_TEMPERATURE)
         if temp is None:
             return
-        await self.coordinator.async_set_fields(
-            self._device_id,
-            {FIELD_HTD2: int(round(float(temp) * 10))},
-        )
+        await self._async_write({FIELD_HTD2: int(round(float(temp) * 10))})
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """OFF mirrors the app behavior of writing both htd1 and htd13 to 0."""
         if hvac_mode == HVACMode.OFF:
-            await self.coordinator.async_set_fields(
-                self._device_id,
-                {FIELD_HTD1: HTD1_OFF, FIELD_HTD13: "0"},
-            )
+            await self._async_write({FIELD_HTD1: HTD1_OFF, FIELD_HTD13: "0"})
         elif hvac_mode == HVACMode.HEAT:
             # Writing htd1=1 puts the heater in Auto Idle; firmware decides
             # when to promote that to Heating (htd1=3) based on flow + temp.
-            await self.coordinator.async_set_fields(
-                self._device_id,
-                {FIELD_HTD1: HTD1_AUTO_IDLE},
+            self._check_service_mode()
+            await self._heating_pump.async_ensure_running()
+            await self._async_write({FIELD_HTD1: HTD1_AUTO_IDLE})
+
+    async def async_start_timer(self, duration: timedelta) -> None:
+        """Run the heater for `duration`, then let it turn off (`start_heater_timer` action).
+
+        Turns the heater on if it is off, like the app's heater timer screen,
+        and runs the heating pump program if one is configured. Turning the
+        heater off cancels the timer.
+        """
+        seconds = int(duration.total_seconds())
+        if not HEATER_TIMER_MIN_SECONDS <= seconds <= HEATER_TIMER_MAX_SECONDS:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="heater_timer_out_of_range",
+                translation_placeholders={
+                    "min": str(HEATER_TIMER_MIN_SECONDS // 60),
+                    "max": str(HEATER_TIMER_MAX_SECONDS // 86400),
+                },
             )
+        payload: dict[str, Any] = {FIELD_HTD13: str(seconds)}
+        if self.field_value(FIELD_HTD1) in (None, HTD1_OFF):
+            payload[FIELD_HTD1] = HTD1_AUTO_IDLE
+        self._check_service_mode()
+        await self._heating_pump.async_ensure_running()
+        await self._async_write(payload)
+
+    def _check_service_mode(self) -> None:
+        """Refuse heater changes while the controller is in service mode, like the app."""
+        service_mode = self.field_value(FIELD_ECS1)
+        if service_mode not in (None, _ECS1_NORMAL):
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="heater_service_mode",
+            )
+
+    async def _async_write(self, payload: dict[str, Any]) -> None:
+        """Send a heater write unless the controller is in service mode."""
+        self._check_service_mode()
+        try:
+            await self.coordinator.async_set_fields(self._device_id, payload)
+        except PentairPoolApiClientError as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="heater_command_failed",
+            ) from err

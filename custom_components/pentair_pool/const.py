@@ -21,6 +21,11 @@ PARALLEL_UPDATES = 1
 # changes within a second; this is the fallback for missed pushes.
 DEFAULT_POLL_INTERVAL_SECONDS = 60
 
+# Option: pump program (1-4) the heater starts when it needs flow and the pump
+# on its controller is stopped. "0" (the default) leaves the pump alone.
+CONF_HEATING_PUMP_PROGRAM = "heating_pump_program"
+HEATING_PUMP_PROGRAM_NONE = "0"
+
 # Legacy options-flow defaults (kept so the blueprint's options_flow imports
 # still resolve). Not yet wired to anything functional.
 DEFAULT_UPDATE_INTERVAL_HOURS = 1
@@ -78,8 +83,10 @@ FIELD_P1 = "p1"  # Relay1_Egg_Timer (seconds; the app writes it together with ra
 FIELD_P2 = "p2"  # Relay2_Egg_Timer (seconds; written together with rb3)
 FIELD_HTD1 = "htd1"  # Heater_Mode
 FIELD_HTD2 = "htd2"  # Heater_SetPoint (tenths of degF)
-FIELD_HTD13 = "htd13"  # Heater aux flag (written with htd1=0 on OFF)
+FIELD_HTD13 = "htd13"  # Heater_EggTimer (run duration, seconds; 0 clears it)
 FIELD_HTD14 = "htd14"  # Heater_Cooldown (seconds, RO)
+FIELD_HTS2 = "hts2"  # HeaterEggTimerStatus (seconds remaining, RO)
+FIELD_ECS1 = "ecs1"  # Device service mode (0 = normal; the app blocks heater writes otherwise)
 FIELD_ICD1 = "icd1"  # Chlor_Set_Percentage (set in the Pentair app; not written by this integration)
 FIELD_ICD2 = "icd2"  # Boost_Mode_RPM (one-shot)
 FIELD_ICD3 = "icd3"  # Boost_Mode_Timer (one-shot, seconds)
@@ -182,18 +189,31 @@ RELAY_TIMER_DEFAULT_MINUTES = 10
 # Earlier code had these swapped. Mode 1 is also what we WRITE to turn the
 # heater on, because that puts it in auto monitoring; the firmware itself
 # transitions 1->3 when it decides to fire (water below setpoint AND pump
-# flow available). Values 2 and 4 are firmware-managed and rarely seen.
+# flow available). The Android app (v4.2.21, getHeaterData) treats 2 like 1
+# and 4 like 3: 2 = on under a timer or schedule but not firing, 4 = firing
+# under a timer or schedule. Both are firmware-managed.
 HTD1_OFF = "0"
 HTD1_AUTO_IDLE = "1"
+HTD1_TIMER_IDLE = "2"
 HTD1_HEATING = "3"
+HTD1_TIMER_HEATING = "4"
+HTD1_HEATING_MODES = frozenset({HTD1_HEATING, HTD1_TIMER_HEATING})
 
 HTD1_LABELS = {
     "0": "Off",
     "1": "Auto idle",
-    "2": "Schedule running",  # tentative
+    "2": "Timer or schedule idle",
     "3": "Heating",
-    "4": "Schedule will run",  # tentative
+    "4": "Timer or schedule heating",
 }
+
+# --- Heater egg timer ---------------------------------------------------------
+# Decoded from the Android app (IC1_HeaterTimer addTimer): the app writes the
+# run length to htd13 in seconds and, only if the heater is off, htd1=1 in the
+# same PUT. hts2 then reports the seconds left. Turning the heater off writes
+# htd13=0, which also cancels the timer. 2592000 s (30 days) is the field's max.
+HEATER_TIMER_MIN_SECONDS = 60
+HEATER_TIMER_MAX_SECONDS = 2592000
 
 # --- Salt cell boost ---------------------------------------------------------
 BOOST_RPM = "450"

@@ -2,3 +2,15 @@ reload_data:
   name: Reload data
   description: Force an immediate REST poll of the Pentair Cloud API.
   fields: {}
+
+start_heater_timer:
+  target:
+    entity:
+      integration: pentair_pool
+      domain: climate
+  fields:
+    duration:
+      required: true
+      example: "02:00:00"
+      selector:
+        duration:

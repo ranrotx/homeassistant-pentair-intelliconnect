@@ -33,6 +33,32 @@
       "already_configured": "This Pentair Home account is already configured."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "heating_pump_program": "Pump program for heating",
+          "update_interval_hours": "Update interval",
+          "enable_debugging": "Enable debugging",
+          "custom_icon": "Custom icon"
+        },
+        "data_description": {
+          "heating_pump_program": "The heater only fires while a pump runs. When you turn the heater on or start a heater timer and the pump is stopped, this program runs. After the heater turns off and cools down, the pump is stopped and its schedules resume. Pick a program that isn't set to run on a schedule."
+        }
+      }
+    }
+  },
+  "selector": {
+    "heating_pump_program": {
+      "options": {
+        "0": "None (don't start the pump)",
+        "1": "Program 1",
+        "2": "Program 2",
+        "3": "Program 3",
+        "4": "Program 4"
+      }
+    }
+  },
   "exceptions": {
     "authentication_failed": {
       "message": "Authentication with Pentair Cloud failed."
@@ -48,6 +74,15 @@
     },
     "program_runs_on_schedule": {
       "message": "{program} is set to run on a schedule. Press Resume pump schedules to let it run."
+    },
+    "heater_command_failed": {
+      "message": "Pentair Cloud did not accept the heater command."
+    },
+    "heater_service_mode": {
+      "message": "The controller is in service mode. Heater changes are blocked until it returns to normal operation."
+    },
+    "heater_timer_out_of_range": {
+      "message": "The heater timer must be between {min} minute and {max} days."
     }
   },
   "entity": {
@@ -68,6 +103,7 @@
       "pump_program": { "name": "Pump program" },
       "pump_timer_remaining": { "name": "Pump timer remaining" },
       "heater_cooldown": { "name": "Heater cooldown" },
+      "heater_timer_remaining": { "name": "Heater timer remaining" },
       "chlorine_actual": { "name": "Chlorine output (actual)" },
       "salt_ppm": { "name": "Salt level" },
       "salt_cell_temp": { "name": "Salt cell water temperature" },
@@ -87,6 +123,16 @@
     "reload_data": {
       "name": "Reload data",
       "description": "Force an immediate REST poll of the Pentair Cloud API."
+    },
+    "start_heater_timer": {
+      "name": "Start heater timer",
+      "description": "Run the pool heater for a set time, then turn it off. Turns the heater on if it is off. Turning the heater off cancels the timer.",
+      "fields": {
+        "duration": {
+          "name": "Duration",
+          "description": "How long the heater runs, from 1 minute to 30 days."
+        }
+      }
     }
   }
 }
