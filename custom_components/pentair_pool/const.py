@@ -90,16 +90,27 @@ FIELD_ICS15 = "ics15"  # Chlor_Operation_Hours (RO)
 # ra* relay fields are present in the REST snapshot but NEVER push over the
 # WebSocket for a VSF pump, so ifs* is the only real-time source.
 FIELD_IFS1 = "ifs1"  # Running_Stopped -> pump enable state (10=enabled, 4=disabled)
-FIELD_IFS2 = "ifs2"  # Active_Menu (status/menu code; 17 seen while priming)
+FIELD_IFS2 = "ifs2"  # Active_Menu (0=off, N=program N running, 17=priming)
 FIELD_IFS3 = "ifs3"  # Actual_Power (watts, RO)
 FIELD_IFS4 = "ifs4"  # Actual_Speed_Status (RPM, RO)
-FIELD_IFS27 = "ifs27"  # Duration -> egg-timer remaining (seconds, RO while a timed run is active)
+FIELD_IFS27 = "ifs27"  # Duration -> egg-timer remaining (minutes, RO while a timed run is active)
 
 # ifs1 (Running_Stopped) values. Confirmed live 2026-07-04 by enabling/disabling
 # the fountain: the field holds 10 in every enabled state (idle, priming, or
 # running) and 4 when the pump feature is disabled at the controller.
 IFS1_ENABLED = "10"
 IFS1_DISABLED = "4"
+
+# ifs2 (Active_Menu) values. Confirmed live 2026-10-25 by starting/stopping
+# programs from the app: 0 while stopped, 17 while priming, then the number of
+# the running program (Program 2 -> 2, Program 3 -> 3).
+IFS2_OFF = "0"
+IFS2_PRIMING = "17"
+
+# Program display names (cloud fields), one per app "Program 1-4" slot. Each
+# program's settings live in the ifd* SpeedN_* config fields (mode, RPM, egg-timer
+# minutes); those are edited in the Pentair app, not by this integration.
+FIELD_PROGRAM_NAMES = ("p5", "p6", "p7", "p8")
 
 # Temperature sensors (whole degrees F, NOT tenths like htd2)
 FIELD_T0 = "t0"  # Current_Water_Temp (RO, degF integer)

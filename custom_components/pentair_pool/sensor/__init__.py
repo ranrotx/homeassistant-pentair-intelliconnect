@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from custom_components.pentair_pool.const import (
     FIELD_HTD1,
+    FIELD_IFS2,
     FIELD_IFS3,
     FIELD_IFS4,
     FIELD_IFS27,
@@ -17,7 +18,12 @@ from custom_components.pentair_pool.const import (
 from custom_components.pentair_pool.entity_utils.capabilities import CAP_HEATER, CAP_WATER_TEMP, capability_present
 
 from .cooldown import PentairPoolCooldownCountdown
-from .pump import PentairPoolPumpPowerSensor, PentairPoolPumpSpeedSensor, PentairPoolPumpTimerRemainingSensor
+from .pump import (
+    PentairPoolPumpPowerSensor,
+    PentairPoolPumpProgramSensor,
+    PentairPoolPumpSpeedSensor,
+    PentairPoolPumpTimerRemainingSensor,
+)
 from .telemetry import SENSORS, PentairPoolFieldSensor
 
 if TYPE_CHECKING:
@@ -48,9 +54,11 @@ async def async_setup_entry(
         # Pump power: from IntelliFlo watts (ifs3) or relay power (ra4).
         if FIELD_IFS3 in fields or FIELD_RA4 in fields:
             entities.append(PentairPoolPumpPowerSensor(coordinator, device_id))
-        # Speed + egg-timer remaining are VSF-only (ifs*).
+        # Speed, active program + egg-timer remaining are VSF-only (ifs*).
         if FIELD_IFS4 in fields:
             entities.append(PentairPoolPumpSpeedSensor(coordinator, device_id))
+        if FIELD_IFS2 in fields:
+            entities.append(PentairPoolPumpProgramSensor(coordinator, device_id))
         if FIELD_IFS27 in fields:
             entities.append(PentairPoolPumpTimerRemainingSensor(coordinator, device_id))
         # The cooldown countdown is a heater accessory; skip on controllers
