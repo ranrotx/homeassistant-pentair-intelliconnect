@@ -249,4 +249,5 @@ $RECYCLE.BIN/
 # pentair_pool: scratch outputs from debug scripts (uncommitted by design)
 script/_cooldown_capture.jsonl
 script/_names.out
+script/_mitm_pentair_log.log
 
