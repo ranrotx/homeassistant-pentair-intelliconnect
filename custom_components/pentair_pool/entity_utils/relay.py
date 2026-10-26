@@ -160,20 +160,29 @@ def _in_window(start: int, stop: int, now: int) -> bool:
     return True
 
 
-def running_by_schedule(relay: RelayFields, values: FieldValues, now: datetime) -> bool:
-    """True if a schedule window is running right now (app: getRunningStatus)."""
-    if values.get(relay.state) != RELAY_FOLLOW_SCHEDULE:
-        return False
-    if (_int(values.get(relay.timer_status)) or 0) > 0:
-        return False
+def in_schedule_window(relay: RelayFields, values: FieldValues, now: datetime) -> bool:
+    """True if `now` falls inside one of the relay's schedule windows.
+
+    Unlike the app, a start or stop of 0 is midnight UTC (e.g. 7 PM CDT), not
+    an unset time; the controller runs such a window. Only 0-0 counts as unset.
+    """
     seconds = now.hour * 3600 + now.minute * 60 + now.second
     for start_code, stop_code in relay.schedules:
         start, stop = _int(values.get(start_code)), _int(values.get(stop_code))
-        if not _schedule_enabled(start) or not start or not stop:
+        if start is None or stop is None or not _schedule_enabled(start) or not (start or stop):
             continue
         if _in_window(start, stop, seconds):
             return True
     return False
+
+
+def running_by_schedule(relay: RelayFields, values: FieldValues, now: datetime) -> bool:
+    """True if the relay follows its schedule and a window is running (app: getRunningStatus)."""
+    if values.get(relay.state) != RELAY_FOLLOW_SCHEDULE:
+        return False
+    if (_int(values.get(relay.timer_status)) or 0) > 0:
+        return False
+    return in_schedule_window(relay, values, now)
 
 
 def relay_is_on(relay: RelayFields, values: FieldValues, now: datetime) -> bool | None:
@@ -206,9 +215,12 @@ def relay_payload(relay: RelayFields, values: FieldValues, *, turn_on: bool, now
         else:
             payload[relay.state] = RELAY_ON_OVERRIDE
         return payload
+    # The app holds the relay off only when it is in state 2 inside a window,
+    # so from an on override (3) it writes 2 and the running window keeps the
+    # relay on. Hold it off whenever a window is running instead.
     if not scheduled:
         payload[relay.state] = RELAY_OFF
-    elif running_by_schedule(relay, values, now):
+    elif in_schedule_window(relay, values, now):
         payload[relay.state] = RELAY_OFF_OVERRIDE
     else:
         payload[relay.state] = RELAY_FOLLOW_SCHEDULE
